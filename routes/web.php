@@ -11,6 +11,40 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
+use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\KitchenController;
+use App\Http\Controllers\CashController;
+
+Route::middleware(['auth'])->group(function () {
+
+    // Rutas para Admin
+    Route::middleware(['role:admin'])->prefix('admin')->group(function () {
+        Route::resource('products', ProductController::class);
+        Route::get('reports', [ProductController::class, 'reports'])->name('admin.reports');
+    });
+
+    // Rutas para Cajero
+    Route::middleware(['role:cajero'])->group(function () {
+        Route::resource('orders', OrderController::class)->only(['index', 'create', 'store', 'show']);
+        Route::get('cash', [CashController::class, 'index'])->name('cash.index');
+        Route::post('cash/open', [CashController::class, 'open'])->name('cash.open');
+        Route::post('cash/close', [CashController::class, 'close'])->name('cash.close');
+    });
+
+    // Rutas para Cocina
+    Route::middleware(['role:cocina'])->group(function () {
+        Route::get('kitchen', [KitchenController::class, 'index'])->name('kitchen.index');
+    });
+
+    // Rutas para Mozo
+    Route::middleware(['role:mozo'])->prefix('waiter')->group(function () {
+        Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create');
+        Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
+        Route::get('orders/{order}', [OrderController::class, 'show'])->name('mozo.orders.show');
+    });
+});
+
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');

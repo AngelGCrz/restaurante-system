@@ -1,0 +1,74 @@
+<x-layouts.app>
+    <div class="flex h-full w-full flex-1 flex-col gap-4 p-4">
+        <div class="flex items-center gap-4">
+            <flux:button variant="subtle" icon="arrow-left" href="{{ route('orders.index') }}" />
+            <h1 class="text-2xl font-bold">Detalle de Pedido #{{ $order->id }}</h1>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-6">
+                <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
+                    <h2 class="text-lg font-semibold mb-4">Productos</h2>
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b border-zinc-200 dark:border-zinc-700">
+                                <th class="pb-3 font-semibold">Producto</th>
+                                <th class="pb-3 font-semibold">Cantidad</th>
+                                <th class="pb-3 font-semibold text-right">Precio</th>
+                                <th class="pb-3 font-semibold text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                            @foreach($order->items as $item)
+                                <tr>
+                                    <td class="py-3">{{ $item->product->name }}</td>
+                                    <td class="py-3">{{ $item->quantity }}</td>
+                                    <td class="py-3 text-right">${{ number_format($item->price, 2) }}</td>
+                                    <td class="py-3 text-right">${{ number_format($item->price * $item->quantity, 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="pt-4 text-right font-bold text-lg">Total:</td>
+                                <td class="pt-4 text-right font-bold text-lg text-primary-600">${{ number_format($order->total, 2) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
+                    <h2 class="text-lg font-semibold mb-4">Información General</h2>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Estado:</span>
+                            <span class="font-medium capitalize text-yellow-600">{{ $order->status }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Cliente:</span>
+                            <span class="font-medium">{{ $order->customer_name ?? 'N/A' }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Tipo:</span>
+                            <span class="font-medium capitalize">{{ $order->type }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-500">Atendido por:</span>
+                            <span class="font-medium">{{ $order->user->name }}</span>
+                        </div>
+                    </div>
+                    @if($order->status === 'pendiente')
+                        <div class="mt-6">
+                            <form action="#" method="POST">
+                                @csrf
+                                <flux:button variant="primary" class="w-full">Registrar Pago</flux:button>
+                            </form>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+</x-layouts.app>

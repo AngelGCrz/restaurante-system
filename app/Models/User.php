@@ -23,7 +23,28 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role_id',
     ];
+
+    public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role->name === 'admin';
+    }
+
+    public function isCajero(): bool
+    {
+        return $this->role->name === 'cajero';
+    }
+
+    public function isCocina(): bool
+    {
+        return $this->role->name === 'cocina';
+    }
 
     /**
      * The attributes that should be hidden for serialization.
