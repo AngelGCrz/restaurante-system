@@ -28,3 +28,11 @@ Homestead.json
 .env.production
 .phpactor.json
 auth.json
+
+/.phpunit.cache
+/node_modules
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
