@@ -1,7 +1,7 @@
 <x-layouts.app>
     <div class="flex h-full w-full flex-1 flex-col gap-4 p-4">
         <div class="flex items-center gap-4">
-            <flux:button variant="subtle" icon="arrow-left" href="{{ route('orders.index') }}" />
+            <flux:button variant="subtle" icon="arrow-left" href="{{ auth()->user()->role->name === 'mozo' ? route('mozo.orders.create') : route('orders.index') }}" />
             <h1 class="text-2xl font-bold">Detalle de Pedido #{{ $order->id }}</h1>
         </div>
 
@@ -52,7 +52,7 @@
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Tipo:</span>
-                            <span class="font-medium capitalize">{{ $order->type }}</span>
+                            <span class="font-medium capitalize">{{ $order->type }} {{ $order->table ? '- ' . $order->table->number : '' }}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Atendido por:</span>

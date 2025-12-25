@@ -11,7 +11,7 @@
                     </div>
                     <div class="mb-3">
                         <p class="text-sm font-semibold">Cliente: {{ $order->customer_name ?? 'N/A' }}</p>
-                        <p class="text-sm">Tipo: {{ ucfirst($order->type) }}</p>
+                        <p class="text-sm">Tipo: {{ ucfirst($order->type) }} {{ $order->table ? '- ' . $order->table->number : '' }}</p>
                     </div>
                     <ul class="divide-y divide-zinc-100 dark:divide-zinc-700">
                         @foreach($order->items as $item)

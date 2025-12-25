@@ -2,7 +2,7 @@
     <div class="flex h-full w-full flex-1 flex-col gap-4 p-4">
         <div class="flex items-center justify-between">
             <h1 class="text-2xl font-bold">Gestión de Productos</h1>
-            <flux:button variant="primary" icon="plus" href="{{ route('products.create') }}">Nuevo Producto</flux:button>
+            <flux:button variant="primary" icon="plus" href="{{ route('admin.products.create') }}">Nuevo Producto</flux:button>
         </div>
 
         <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">

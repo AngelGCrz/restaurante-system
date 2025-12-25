@@ -27,7 +27,7 @@ class LoginResponse implements LoginResponseContract
         }
 
         if ($user->role->name === 'mozo') {
-            return redirect()->intended(route('orders.create'));
+            return redirect()->intended(route('mozo.orders.create'));
         }
 
         return redirect()->intended(config('fortify.home'));

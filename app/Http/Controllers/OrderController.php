@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Table;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -12,14 +13,15 @@ class OrderController extends Controller
 {
     public function index()
     {
-        $orders = Order::with('user')->orderBy('created_at', 'desc')->get();
+        $orders = Order::with(['user', 'table'])->orderBy('created_at', 'desc')->get();
         return view('orders.index', compact('orders'));
     }
 
     public function create()
     {
         $products = Product::where('is_available', true)->get();
-        return view('orders.create', compact('products'));
+        $tables = Table::where('status', 'libre')->get();
+        return view('orders.create', compact('products', 'tables'));
     }
 
     public function store(Request $request)
@@ -27,6 +29,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'customer_name' => 'nullable|string',
             'type' => 'required|in:mesa,llevar',
+            'table_id' => 'required_if:type,mesa|exists:tables,id',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -35,10 +38,15 @@ class OrderController extends Controller
         return DB::transaction(function () use ($request, $validated) {
             $order = Order::create([
                 'user_id' => $request->user()->id,
+                'table_id' => $validated['type'] === 'mesa' ? $validated['table_id'] : null,
                 'customer_name' => $validated['customer_name'],
                 'type' => $validated['type'],
                 'total' => 0,
             ]);
+
+            if ($order->type === 'mesa') {
+                $order->table->update(['status' => 'ocupada']);
+            }
 
             $total = 0;
             foreach ($validated['items'] as $item) {

@@ -15,16 +15,41 @@
                 <flux:navlist.group :heading="__('Platform')" class="grid">
                     <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>{{ __('Dashboard') }}</flux:navlist.item>
                 </flux:navlist.group>
+
+                @if(auth()->user()->role->name === 'admin')
+                    <flux:navlist.group heading="Administración" class="grid">
+                        <flux:navlist.item icon="shopping-bag" :href="route('admin.products.index')" :current="request()->routeIs('admin.products.*')" wire:navigate>Productos</flux:navlist.item>
+                        <flux:navlist.item icon="table-cells" :href="route('admin.tables.index')" :current="request()->routeIs('admin.tables.*')" wire:navigate>Mesas</flux:navlist.item>
+                    </flux:navlist.group>
+                @endif
+
+                @if(auth()->user()->role->name === 'mozo')
+                    <flux:navlist.group heading="Atención" class="grid">
+                        <flux:navlist.item icon="plus-circle" :href="route('mozo.orders.create')" :current="request()->routeIs('mozo.orders.create')" wire:navigate>Nuevo Pedido</flux:navlist.item>
+                    </flux:navlist.group>
+                @endif
+
+                @if(auth()->user()->role->name === 'cocina')
+                    <flux:navlist.group heading="Cocina" class="grid">
+                        <flux:navlist.item icon="clipboard-document-list" :href="route('kitchen.index')" :current="request()->routeIs('kitchen.*')" wire:navigate>Monitor</flux:navlist.item>
+                    </flux:navlist.group>
+                @endif
+
+                @if(auth()->user()->role->name === 'cajero')
+                    <flux:navlist.group heading="Caja" class="grid">
+                        <flux:navlist.item icon="banknotes" :href="route('orders.index')" :current="request()->routeIs('orders.*')" wire:navigate>Pedidos</flux:navlist.item>
+                    </flux:navlist.group>
+                @endif
             </flux:navlist>
 
             <flux:spacer />
 
             <flux:navlist variant="outline">
-                <flux:navlist.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
+                <flux:navlist.item icon="folder-open" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
                 {{ __('Repository') }}
                 </flux:navlist.item>
 
-                <flux:navlist.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
+                <flux:navlist.item icon="book-open" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
                 {{ __('Documentation') }}
                 </flux:navlist.item>
             </flux:navlist>

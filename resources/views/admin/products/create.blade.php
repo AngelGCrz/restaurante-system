@@ -3,7 +3,7 @@
         <h1 class="text-2xl font-bold">Crear Producto</h1>
 
         <div class="max-w-xl rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
-            <form action="{{ route('products.store') }}" method="POST" class="space-y-4">
+            <form action="{{ route('admin.products.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <flux:input name="name" label="Nombre del Producto" required />
                 <flux:input name="price" label="Precio" type="number" step="0.01" required />
