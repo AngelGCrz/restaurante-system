@@ -5,6 +5,10 @@
             <flux:button variant="primary" icon="plus" href="{{ route('admin.products.create') }}">Nuevo Producto</flux:button>
         </div>
 
+        @if(session('success'))
+            <flux:callout variant="success" heading="{{ session('success') }}" />
+        @endif
+
         <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
             <table class="w-full text-left">
                 <thead>
@@ -12,6 +16,7 @@
                         <th class="pb-3 font-semibold">Nombre</th>
                         <th class="pb-3 font-semibold">Precio</th>
                         <th class="pb-3 font-semibold">Estado</th>
+                        <th class="pb-3 font-semibold text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -23,6 +28,27 @@
                                 <span class="rounded-full px-2 py-1 text-xs {{ $product->is_available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
                                     {{ $product->is_available ? 'Disponible' : 'No disponible' }}
                                 </span>
+                            </td>
+                            <td class="py-3 text-right space-x-2">
+                                <form action="{{ route('admin.products.update', $product) }}" method="POST" class="inline">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="hidden" name="name" value="{{ $product->name }}">
+                                    <input type="hidden" name="price" value="{{ $product->price }}">
+                                    <input type="hidden" name="description" value="{{ $product->description }}">
+                                    <input type="hidden" name="is_available" value="{{ $product->is_available ? 0 : 1 }}">
+                                    <flux:button type="submit" size="sm" variant="ghost" icon="power">
+                                        {{ $product->is_available ? 'Desactivar' : 'Activar' }}
+                                    </flux:button>
+                                </form>
+
+                                <flux:button size="sm" variant="subtle" icon="pencil" href="{{ route('admin.products.edit', $product) }}">Editar</flux:button>
+
+                                <form action="{{ route('admin.products.destroy', $product) }}" method="POST" class="inline" onsubmit="return confirm('¿Eliminar producto?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <flux:button type="submit" size="sm" variant="ghost" icon="trash">Eliminar</flux:button>
+                                </form>
                             </td>
                         </tr>
                     @endforeach

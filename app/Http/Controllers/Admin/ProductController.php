@@ -19,6 +19,11 @@ class ProductController extends Controller
         return view('admin.products.create');
     }
 
+    public function edit(Product $product)
+    {
+        return view('admin.products.edit', compact('product'));
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -27,8 +32,9 @@ class ProductController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        Product::create($validated);
-        return redirect()->back()->with('success', 'Producto creado.');
+        Product::create($validated + ['is_available' => true]);
+
+        return redirect()->route('admin.products.index')->with('success', 'Producto creado.');
     }
 
     public function update(Request $request, Product $product)
@@ -37,16 +43,20 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
-            'is_available' => 'boolean',
+            'is_available' => 'sometimes|boolean',
         ]);
 
+        // Checkbox unchecked no viene: forzamos valor booleano
+        $validated['is_available'] = $request->boolean('is_available');
+
         $product->update($validated);
-        return redirect()->back()->with('success', 'Producto actualizado.');
+
+        return redirect()->route('admin.products.index')->with('success', 'Producto actualizado.');
     }
 
     public function destroy(Product $product)
     {
         $product->delete();
-        return redirect()->back()->with('success', 'Producto eliminado.');
+        return redirect()->route('admin.products.index')->with('success', 'Producto eliminado.');
     }
 }
