@@ -55,8 +55,8 @@
                             <span class="font-medium">{{ $order->customer_name ?? 'N/A' }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-zinc-500">Tipo:</span>
-                            <span class="font-medium capitalize">{{ $order->type }} {{ $order->table ? '- ' . $order->table->number : '' }}</span>
+                            <span class="text-zinc-500">Servicio:</span>
+                            <span class="font-medium">{{ $order->table_label }}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Atendido por:</span>

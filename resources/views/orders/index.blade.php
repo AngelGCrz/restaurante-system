@@ -22,7 +22,7 @@
                             <td class="py-3">#{{ $order->id }}</td>
                             <td class="py-3">{{ $order->customer_name ?? 'N/A' }}</td>
                             <td class="py-3">
-                                {{ $order->table ? $order->table->number : ucfirst($order->type) }}
+                                {{ $order->table_label }}
                             </td>
                             <td class="py-3">${{ number_format($order->total, 2) }}</td>
                             <td class="py-3">

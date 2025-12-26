@@ -22,7 +22,7 @@
                         @if (Route::has('admin.categories.index'))
                             <flux:navlist.item icon="swatch" :href="route('admin.categories.index')" :current="request()->routeIs('admin.categories.*')" wire:navigate>Categorías</flux:navlist.item>
                         @endif
-                        <flux:navlist.item icon="table-cells" :href="route('admin.tables.index')" :current="request()->routeIs('admin.tables.*')" wire:navigate>Mesas</flux:navlist.item>
+                        <flux:navlist.item icon="table-cells" :href="route('admin.tables.edit')" :current="request()->routeIs('admin.tables.*')" wire:navigate>Mesas</flux:navlist.item>
                     </flux:navlist.group>
                 @endif
 

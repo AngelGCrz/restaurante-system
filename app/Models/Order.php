@@ -6,20 +6,31 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    protected $fillable = ['user_id', 'table_id', 'customer_name', 'type', 'total', 'status'];
+    protected $fillable = ['user_id', 'customer_name', 'type', 'table_numbers', 'total', 'status'];
+
+    protected $casts = [
+        'table_numbers' => 'array',
+    ];
 
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function table(): \Illuminate\Database\Eloquent\Relations\BelongsTo
-    {
-        return $this->belongsTo(Table::class);
-    }
-
     public function items(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function getTableLabelAttribute(): string
+    {
+        if (! is_array($this->table_numbers) || empty($this->table_numbers)) {
+            return ucfirst($this->type);
+        }
+
+        $tables = array_values(array_map('intval', $this->table_numbers));
+        $prefix = count($tables) === 1 ? 'Mesa' : 'Mesas';
+
+        return $prefix . ' ' . implode(' + ', $tables);
     }
 }

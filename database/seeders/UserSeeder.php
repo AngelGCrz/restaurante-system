@@ -17,32 +17,46 @@ class UserSeeder extends Seeder
         $cocinaRole = \App\Models\Role::where('name', 'cocina')->first();
         $mozoRole = \App\Models\Role::where('name', 'mozo')->first();
 
-        \App\Models\User::create([
-            'name' => 'Admin Restaurante',
-            'email' => 'admin@restaurante.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
-            'role_id' => $adminRole->id,
-        ]);
+        $now = now();
 
-        \App\Models\User::create([
-            'name' => 'Cajero 1',
-            'email' => 'caja@restaurante.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
-            'role_id' => $cajeroRole->id,
-        ]);
+        \App\Models\User::updateOrCreate(
+            ['email' => 'admin@restaurante.com'],
+            [
+                'name' => 'Admin Restaurante',
+                'password' => 'password',
+                'role_id' => $adminRole->id,
+                'email_verified_at' => $now,
+            ],
+        );
 
-        \App\Models\User::create([
-            'name' => 'Cocina 1',
-            'email' => 'cocina@restaurante.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
-            'role_id' => $cocinaRole->id,
-        ]);
+        \App\Models\User::updateOrCreate(
+            ['email' => 'caja@restaurante.com'],
+            [
+                'name' => 'Cajero 1',
+                'password' => 'password',
+                'role_id' => $cajeroRole->id,
+                'email_verified_at' => $now,
+            ],
+        );
 
-        \App\Models\User::create([
-            'name' => 'Mozo 1',
-            'email' => 'mozo@restaurante.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
-            'role_id' => $mozoRole->id,
-        ]);
+        \App\Models\User::updateOrCreate(
+            ['email' => 'cocina@restaurante.com'],
+            [
+                'name' => 'Cocina 1',
+                'password' => 'password',
+                'role_id' => $cocinaRole->id,
+                'email_verified_at' => $now,
+            ],
+        );
+
+        \App\Models\User::updateOrCreate(
+            ['email' => 'mozo@restaurante.com'],
+            [
+                'name' => 'Mozo 1',
+                'password' => 'password',
+                'role_id' => $mozoRole->id,
+                'email_verified_at' => $now,
+            ],
+        );
     }
 }

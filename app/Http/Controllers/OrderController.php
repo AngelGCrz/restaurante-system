@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\Table;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +13,7 @@ class OrderController extends Controller
 {
     public function index()
     {
-        $query = Order::with(['user', 'table'])->orderBy('created_at', 'desc');
+        $query = Order::with(['user'])->orderBy('created_at', 'desc');
 
         // En caja se prioriza ver pagos; mantenemos pendiente visibles para poder cobrarlos
         if (auth()->check() && auth()->user()->role->name === 'cajero') {
@@ -27,8 +27,32 @@ class OrderController extends Controller
     public function create()
     {
         $products = Product::where('is_available', true)->get();
-        $tables = Table::where('status', 'libre')->get();
-        return view('orders.create', compact('products', 'tables'));
+        $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
+        $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
+
+        $selectedTables = collect(request()->input('tables', []))
+            ->map(fn ($table) => (int) $table)
+            ->filter(fn ($table) => $table > 0 && ($tableCount === 0 || $table <= $tableCount))
+            ->unique()
+            ->values()
+            ->all();
+
+        return view('orders.create', compact('products', 'tableCount', 'tableNumbers', 'selectedTables'));
+    }
+
+    public function selectTables()
+    {
+        $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
+        $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
+
+        $selectedTables = collect(request()->input('tables', []))
+            ->map(fn ($table) => (int) $table)
+            ->filter(fn ($table) => $table > 0 && ($tableCount === 0 || $table <= $tableCount))
+            ->unique()
+            ->values()
+            ->all();
+
+        return view('orders.select-tables', compact('tableCount', 'tableNumbers', 'selectedTables'));
     }
 
     public function store(Request $request)
@@ -39,27 +63,42 @@ class OrderController extends Controller
             ->values()
             ->all();
 
-        $validated = $request->merge(['items' => $filteredItems])->validate([
+        $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
+
+        $selectedTables = collect($request->input('tables', []))
+            ->map(fn ($table) => (int) $table)
+            ->filter(fn ($table) => $table > 0 && ($tableCount === 0 || $table <= $tableCount))
+            ->unique()
+            ->values()
+            ->all();
+
+        $validated = $request->merge([
+            'items' => $filteredItems,
+            'tables' => $selectedTables,
+        ])->validate([
             'customer_name' => 'nullable|string',
             'type' => 'required|in:mesa,llevar',
-            'table_id' => 'required_if:type,mesa|exists:tables,id',
+            'tables' => 'required_if:type,mesa|array|min:1',
+            'tables.*' => 'integer|min:1|max:' . max($tableCount, 1),
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
         ]);
 
+        if ($validated['type'] === 'mesa' && $tableCount === 0) {
+            return back()->withErrors([
+                'tables' => 'Configura la cantidad total de mesas antes de registrar pedidos en mesa.',
+            ])->withInput();
+        }
+
         return DB::transaction(function () use ($request, $validated) {
             $order = Order::create([
                 'user_id' => $request->user()->id,
-                'table_id' => $validated['type'] === 'mesa' ? $validated['table_id'] : null,
                 'customer_name' => $validated['customer_name'],
                 'type' => $validated['type'],
+                'table_numbers' => $validated['type'] === 'mesa' ? $validated['tables'] : [],
                 'total' => 0,
             ]);
-
-            if ($order->type === 'mesa' && $order->table) {
-                $order->table->update(['status' => 'ocupada']);
-            }
 
             $total = 0;
             foreach ($validated['items'] as $item) {
@@ -94,10 +133,6 @@ class OrderController extends Controller
         }
 
         $order->update(['status' => 'pagado']);
-
-        if ($order->table) {
-            $order->table->update(['status' => 'libre']);
-        }
 
         return redirect()
             ->route('orders.show', $order)

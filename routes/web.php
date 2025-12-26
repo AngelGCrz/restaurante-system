@@ -12,7 +12,7 @@ Route::get('/', function () {
 })->name('home');
 
 use App\Http\Controllers\Admin\ProductController;
-use App\Http\Controllers\Admin\TableController;
+use App\Http\Controllers\Admin\TableSettingsController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\KitchenController;
@@ -23,7 +23,8 @@ Route::middleware(['auth'])->group(function () {
     // Rutas para Admin
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::resource('products', ProductController::class);
-        Route::resource('tables', TableController::class);
+        Route::get('tables', [TableSettingsController::class, 'edit'])->name('tables.edit');
+        Route::put('tables', [TableSettingsController::class, 'update'])->name('tables.update');
         Route::resource('categories', CategoryController::class)->except(['show']);
         Route::get('reports', [ProductController::class, 'reports'])->name('reports');
     });
@@ -47,6 +48,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('orders/create', [OrderController::class, 'create'])->name('mozo.orders.create');
         Route::post('orders', [OrderController::class, 'store'])->name('mozo.orders.store');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('mozo.orders.show');
+        Route::get('tables/select', [OrderController::class, 'selectTables'])->name('mozo.tables.select');
     });
 });
 
