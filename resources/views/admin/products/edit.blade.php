@@ -10,12 +10,33 @@
                 @csrf
                 @method('PUT')
 
-                <flux:input name="name" label="Nombre del Producto" value="{{ $product->name }}" required />
-                <flux:input name="price" label="Precio" type="number" step="0.01" value="{{ $product->price }}" required />
-                <flux:textarea name="description" label="Descripción (Opcional)">{{ $product->description }}</flux:textarea>
+                <div>
+                    <label class="text-sm font-medium">Nombre del Producto</label>
+                    <input type="text" name="name" value="{{ old('name', $product->name) }}" required class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" />
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium">Categoría</label>
+                    <select name="category_id" required class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700">
+                        <option value="">Seleccione</option>
+                        @foreach($categories as $category)
+                            <option value="{{ $category->id }}" @selected($product->category_id === $category->id)>{{ $category->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium">Precio</label>
+                    <input type="number" name="price" step="0.01" value="{{ old('price', $product->price) }}" required class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" />
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium">Descripción (Opcional)</label>
+                    <textarea name="description" class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" rows="3">{{ old('description', $product->description) }}</textarea>
+                </div>
 
                 <label class="flex items-center gap-2 text-sm font-medium">
-                    <input type="checkbox" name="is_available" value="1" {{ $product->is_available ? 'checked' : '' }}>
+                    <input type="checkbox" name="is_available" value="1" {{ old('is_available', $product->is_available) ? 'checked' : '' }}>
                     Disponible
                 </label>
 

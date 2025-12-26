@@ -6,6 +6,11 @@
             <form action="{{ route('admin.products.store') }}" method="POST" class="space-y-4">
                 @csrf
                 <flux:input name="name" label="Nombre del Producto" required />
+                <flux:select name="category_id" label="Categoría" required>
+                    @foreach($categories as $category)
+                        <flux:select.option value="{{ $category->id }}">{{ $category->name }}</flux:select.option>
+                    @endforeach
+                </flux:select>
                 <flux:input name="price" label="Precio" type="number" step="0.01" required />
                 <flux:textarea name="description" label="Descripción (Opcional)" />
                 <div class="flex justify-end gap-2">

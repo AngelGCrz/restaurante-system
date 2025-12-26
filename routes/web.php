@@ -13,6 +13,7 @@ Route::get('/', function () {
 
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\TableController;
+use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\KitchenController;
 use App\Http\Controllers\CashController;
@@ -23,6 +24,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::resource('products', ProductController::class);
         Route::resource('tables', TableController::class);
+        Route::resource('categories', CategoryController::class)->except(['show']);
         Route::get('reports', [ProductController::class, 'reports'])->name('reports');
     });
 

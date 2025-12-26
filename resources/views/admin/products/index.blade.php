@@ -14,6 +14,7 @@
                 <thead>
                     <tr class="border-b border-zinc-200 dark:border-zinc-700">
                         <th class="pb-3 font-semibold">Nombre</th>
+                        <th class="pb-3 font-semibold">Categoría</th>
                         <th class="pb-3 font-semibold">Precio</th>
                         <th class="pb-3 font-semibold">Estado</th>
                         <th class="pb-3 font-semibold text-right">Acciones</th>
@@ -23,6 +24,7 @@
                     @foreach($products as $product)
                         <tr>
                             <td class="py-3">{{ $product->name }}</td>
+                            <td class="py-3">{{ $product->category->name ?? 'Sin categoría' }}</td>
                             <td class="py-3">${{ number_format($product->price, 2) }}</td>
                             <td class="py-3">
                                 <span class="rounded-full px-2 py-1 text-xs {{ $product->is_available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
@@ -33,9 +35,7 @@
                                 <form action="{{ route('admin.products.update', $product) }}" method="POST" class="inline">
                                     @csrf
                                     @method('PUT')
-                                    <input type="hidden" name="name" value="{{ $product->name }}">
-                                    <input type="hidden" name="price" value="{{ $product->price }}">
-                                    <input type="hidden" name="description" value="{{ $product->description }}">
+                                    <input type="hidden" name="quick_toggle" value="1">
                                     <input type="hidden" name="is_available" value="{{ $product->is_available ? 0 : 1 }}">
                                     <flux:button type="submit" size="sm" variant="ghost" icon="power">
                                         {{ $product->is_available ? 'Desactivar' : 'Activar' }}
