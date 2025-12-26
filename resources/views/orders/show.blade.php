@@ -5,6 +5,10 @@
             <h1 class="text-2xl font-bold">Detalle de Pedido #{{ $order->id }}</h1>
         </div>
 
+        @if(session('success'))
+            <flux:callout variant="success" heading="{{ session('success') }}" />
+        @endif
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-6">
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
@@ -44,7 +48,7 @@
                     <div class="space-y-3">
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Estado:</span>
-                            <span class="font-medium capitalize text-yellow-600">{{ $order->status }}</span>
+                            <span class="font-medium capitalize {{ $order->status === 'pagado' ? 'text-green-600' : ($order->status === 'cancelado' ? 'text-red-600' : 'text-yellow-600') }}">{{ $order->status }}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Cliente:</span>
@@ -59,11 +63,11 @@
                             <span class="font-medium">{{ $order->user->name }}</span>
                         </div>
                     </div>
-                    @if($order->status === 'pendiente')
+                    @if($order->status === 'pendiente' && auth()->user()->role->name === 'cajero')
                         <div class="mt-6">
-                            <form action="#" method="POST">
+                            <form action="{{ route('orders.pay', $order) }}" method="POST">
                                 @csrf
-                                <flux:button variant="primary" class="w-full">Registrar Pago</flux:button>
+                                <flux:button type="submit" variant="primary" class="w-full">Registrar Pago</flux:button>
                             </form>
                         </div>
                     @endif
@@ -71,4 +75,12 @@
             </div>
         </div>
     </div>
+
+    @if(session('paid'))
+        <script>
+            window.addEventListener('load', () => {
+                alert('PAGO REALIZADO');
+            });
+        </script>
+    @endif
 </x-layouts.app>

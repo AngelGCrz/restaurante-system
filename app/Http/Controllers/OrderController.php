@@ -13,7 +13,14 @@ class OrderController extends Controller
 {
     public function index()
     {
-        $orders = Order::with(['user', 'table'])->orderBy('created_at', 'desc')->get();
+        $query = Order::with(['user', 'table'])->orderBy('created_at', 'desc');
+
+        // En caja se prioriza ver pagos; mantenemos pendiente visibles para poder cobrarlos
+        if (auth()->check() && auth()->user()->role->name === 'cajero') {
+            $query->orderByRaw("FIELD(status, 'pendiente', 'pagado', 'cancelado')");
+        }
+
+        $orders = $query->get();
         return view('orders.index', compact('orders'));
     }
 
@@ -26,7 +33,13 @@ class OrderController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // Filtrar items con cantidad > 0 para evitar validaciones con ceros
+        $filteredItems = collect($request->input('items', []))
+            ->filter(fn ($item) => isset($item['quantity']) && (int) $item['quantity'] > 0)
+            ->values()
+            ->all();
+
+        $validated = $request->merge(['items' => $filteredItems])->validate([
             'customer_name' => 'nullable|string',
             'type' => 'required|in:mesa,llevar',
             'table_id' => 'required_if:type,mesa|exists:tables,id',
@@ -44,13 +57,17 @@ class OrderController extends Controller
                 'total' => 0,
             ]);
 
-            if ($order->type === 'mesa') {
+            if ($order->type === 'mesa' && $order->table) {
                 $order->table->update(['status' => 'ocupada']);
             }
 
             $total = 0;
             foreach ($validated['items'] as $item) {
                 $product = Product::find($item['product_id']);
+                if (! $product) {
+                    continue;
+                }
+
                 $subtotal = $product->price * $item['quantity'];
 
                 $order->items()->create([
@@ -68,6 +85,26 @@ class OrderController extends Controller
             $route = $request->user()->role->name === 'mozo' ? 'mozo.orders.show' : 'orders.show';
             return redirect()->route($route, $order)->with('success', 'Pedido registrado.');
         });
+    }
+
+    public function pay(Request $request, Order $order)
+    {
+        if ($order->status === 'pagado') {
+            return redirect()->route('orders.show', $order)->with('success', 'El pedido ya está pagado.');
+        }
+
+        $order->update(['status' => 'pagado']);
+
+        if ($order->table) {
+            $order->table->update(['status' => 'libre']);
+        }
+
+        return redirect()
+            ->route('orders.show', $order)
+            ->with([
+                'success' => 'Pago registrado correctamente.',
+                'paid' => true,
+            ]);
     }
 
     public function show(Order $order)

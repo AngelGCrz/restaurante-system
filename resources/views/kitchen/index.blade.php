@@ -9,9 +9,12 @@
                         <span class="font-bold">Orden #{{ $order->id }}</span>
                         <span class="text-sm text-zinc-500">{{ $order->created_at->format('H:i') }}</span>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3 space-y-1">
                         <p class="text-sm font-semibold">Cliente: {{ $order->customer_name ?? 'N/A' }}</p>
                         <p class="text-sm">Tipo: {{ ucfirst($order->type) }} {{ $order->table ? '- ' . $order->table->number : '' }}</p>
+                        <span class="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-700">
+                            Pendiente
+                        </span>
                     </div>
                     <ul class="divide-y divide-zinc-100 dark:divide-zinc-700">
                         @foreach($order->items as $item)
@@ -20,12 +23,6 @@
                             </li>
                         @endforeach
                     </ul>
-                    <div class="mt-4">
-                        <form action="#" method="POST">
-                            @csrf
-                            <flux:button variant="primary" class="w-full">Marcar como listo</flux:button>
-                        </form>
-                    </div>
                 </div>
             @endforeach
         </div>
