@@ -45,6 +45,15 @@ class OrderController extends Controller
         $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
         $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
 
+        $busyTables = Order::where('status', 'pendiente')
+            ->pluck('table_numbers')
+            ->flatten()
+            ->map(fn ($t) => (int) $t)
+            ->filter(fn ($t) => $t > 0)
+            ->unique()
+            ->values()
+            ->all();
+
         $selectedTables = collect(request()->input('tables', []))
             ->map(fn ($table) => (int) $table)
             ->filter(fn ($table) => $table > 0 && ($tableCount === 0 || $table <= $tableCount))
@@ -52,7 +61,7 @@ class OrderController extends Controller
             ->values()
             ->all();
 
-        return view('orders.select-tables', compact('tableCount', 'tableNumbers', 'selectedTables'));
+        return view('orders.select-tables', compact('tableCount', 'tableNumbers', 'selectedTables', 'busyTables'));
     }
 
     public function store(Request $request)
@@ -89,6 +98,24 @@ class OrderController extends Controller
             return back()->withErrors([
                 'tables' => 'Configura la cantidad total de mesas antes de registrar pedidos en mesa.',
             ])->withInput();
+        }
+
+        if ($validated['type'] === 'mesa') {
+            $busyTables = Order::where('status', 'pendiente')
+                ->pluck('table_numbers')
+                ->flatten()
+                ->map(fn ($t) => (int) $t)
+                ->filter(fn ($t) => $t > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+            $conflicts = array_values(array_intersect($busyTables, $validated['tables']));
+            if (! empty($conflicts)) {
+                return back()->withErrors([
+                    'tables' => 'Las mesas ' . implode(' + ', $conflicts) . ' ya están ocupadas en otro pedido.',
+                ])->withInput();
+            }
         }
 
         return DB::transaction(function () use ($request, $validated) {

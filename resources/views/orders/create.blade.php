@@ -10,7 +10,7 @@
                 totalTables: {{ (int) ($tableCount ?? 0) }},
                 presetTables: @json($tableNumbers ?? []),
                 presetSelection: @json($selectedTables ?? []),
-                tableSelectUrl: "{{ url('waiter/tables/select') }}",
+                tableSelectUrl: "{{ route('mozo.tables.select') }}",
             })'
         >
             @csrf

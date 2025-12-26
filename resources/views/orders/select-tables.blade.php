@@ -13,6 +13,7 @@
                  baseRedirect: '{{ route('mozo.orders.create') }}',
                  tableNumbers: @json($tableNumbers),
                  selected: @json($selectedTables),
+                 busy: @json($busyTables ?? []),
              })">
             <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
@@ -31,9 +32,12 @@
                         <button
                             type="button"
                             class="flex h-20 items-center justify-center rounded-lg border text-sm font-semibold transition"
-                            :class="isSelected(table)
-                                ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-100'
-                                : 'border-zinc-200 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100'"
+                            :disabled="isBusy(table)"
+                            :class="isBusy(table)
+                                ? 'cursor-not-allowed border-red-300 bg-red-50 text-red-600 dark:border-red-400 dark:bg-red-900/30 dark:text-red-100'
+                                : isSelected(table)
+                                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-100'
+                                    : 'border-zinc-200 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100'"
                             x-on:click="toggle(table)"
                         >
                             Mesa <span class="ml-1" x-text="table"></span>
@@ -46,15 +50,20 @@
     </div>
 
     <script>
-        function tableSelector({ baseRedirect, tableNumbers = [], selected = [] }) {
+        function tableSelector({ baseRedirect, tableNumbers = [], selected = [], busy = [] }) {
             return {
                 baseRedirect,
                 tableNumbers,
                 selected,
+                busy,
                 isSelected(table) {
                     return this.selected.includes(table);
                 },
+                isBusy(table) {
+                    return this.busy.includes(table);
+                },
                 toggle(table) {
+                    if (this.isBusy(table)) return;
                     if (this.isSelected(table)) {
                         this.selected = this.selected.filter((t) => t !== table);
                     } else {
