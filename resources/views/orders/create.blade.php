@@ -2,7 +2,7 @@
     <div class="flex h-full w-full flex-1 flex-col gap-4 p-4">
         <h1 class="text-2xl font-bold">Nuevo Pedido</h1>
 
-        <form action="{{ route('mozo.orders.store') }}" method="POST" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <form action="{{ route('mozo.orders.store') }}" method="POST" class="grid grid-cols-1 lg:grid-cols-3 gap-6" x-data="{ serviceType: 'mesa' }">
             @csrf
             <div class="lg:col-span-2 space-y-6">
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
@@ -29,12 +29,12 @@
                     <h2 class="text-lg font-semibold mb-4">Información del Pedido</h2>
                     <div class="space-y-4">
                         <flux:input name="customer_name" label="Nombre del Cliente" placeholder="Opcional" />
-                        <flux:select name="type" label="Tipo de Servicio" x-on:change="serviceType = $event.target.value" x-data="{ serviceType: 'mesa' }">
+                        <flux:select name="type" label="Tipo de Servicio" x-on:change="serviceType = $event.target.value">
                             <flux:select.option value="mesa">En Mesa</flux:select.option>
                             <flux:select.option value="llevar">Para Llevar</flux:select.option>
                         </flux:select>
 
-                        <div id="table-selection" x-show="serviceType === 'mesa'">
+                        <div id="table-selection" x-show="serviceType === 'mesa'" x-cloak>
                             <flux:select name="table_id" label="Mesa">
                                 @foreach($tables as $table)
                                     <flux:select.option value="{{ $table->id }}">{{ $table->number }} (Cap: {{ $table->capacity }})</flux:select.option>
