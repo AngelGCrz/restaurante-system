@@ -85,14 +85,16 @@ class OrderController extends Controller
             ->values()
             ->all();
 
+        $isMesa = $request->input('type') === 'mesa';
+
         $validated = $request->merge([
             'items' => $filteredItems,
-            'tables' => $selectedTables,
+            'tables' => $isMesa ? $selectedTables : [],
         ])->validate([
             'customer_name' => 'nullable|string',
             'comment' => 'nullable|string',
             'type' => 'required|in:mesa,llevar',
-            'tables' => 'required_if:type,mesa|array|min:1',
+            'tables' => $isMesa ? 'required|array|min:1' : 'nullable|array',
             'tables.*' => 'integer|min:1|max:' . max($tableCount, 1),
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
