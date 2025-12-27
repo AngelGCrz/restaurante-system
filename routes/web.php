@@ -1,5 +1,12 @@
 <?php
 
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\TableSettingsController;
+use App\Http\Controllers\CashController;
+use App\Http\Controllers\KitchenController;
+use App\Http\Controllers\OrderController;
 use App\Livewire\Settings\Appearance;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
@@ -11,13 +18,6 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-use App\Http\Controllers\Admin\ProductController;
-use App\Http\Controllers\Admin\TableSettingsController;
-use App\Http\Controllers\Admin\CategoryController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\KitchenController;
-use App\Http\Controllers\CashController;
-
 Route::middleware(['auth'])->group(function () {
 
     // Rutas para Admin
@@ -26,7 +26,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('tables', [TableSettingsController::class, 'edit'])->name('tables.edit');
         Route::put('tables', [TableSettingsController::class, 'update'])->name('tables.update');
         Route::resource('categories', CategoryController::class)->except(['show']);
-        Route::get('reports', [ProductController::class, 'reports'])->name('reports');
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::get('/', [ReportController::class, 'index'])->name('index');
+            Route::get('ventas', [ReportController::class, 'sales'])->name('sales');
+            Route::get('caja', [ReportController::class, 'cash'])->name('cash');
+            Route::get('inventario', [ReportController::class, 'inventory'])->name('inventory');
+            Route::get('clientes', [ReportController::class, 'customers'])->name('customers');
+            Route::get('mesas', [ReportController::class, 'tables'])->name('tables');
+            Route::get('cocina', [ReportController::class, 'kitchen'])->name('kitchen');
+            Route::get('ganancias', [ReportController::class, 'profit'])->name('profit');
+        });
     });
 
     // Rutas para Cajero
