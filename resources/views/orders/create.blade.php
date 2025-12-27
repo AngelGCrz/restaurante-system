@@ -13,7 +13,12 @@
                 tableSelectUrl: "{{ route('mozo.tables.select') }}",
                 products: @json($products ?? []),
                 categories: @json($categories ?? []),
+                initialServiceType: @json(old('type', 'mesa')),
+                initialCustomerName: @json(old('customer_name', '')),
+                initialComment: @json(old('comment', '')),
             })'
+            x-init="init()"
+            x-on:submit="clearDraft()"
         >
             @csrf
             <div class="space-y-6 lg:col-span-2">
@@ -79,12 +84,23 @@
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
                     <h2 class="mb-4 text-lg font-semibold">Información del Pedido</h2>
                     <div class="space-y-4">
-                        <flux:input name="customer_name" label="Nombre del Cliente" placeholder="Opcional" />
+                        <label class="block space-y-1">
+                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Nombre del Cliente (opcional)</span>
+                            <input type="text" name="customer_name" x-model="customerName" x-on:input="saveDraft" class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900" placeholder="Opcional">
+                        </label>
 
-                        <flux:select name="type" label="Tipo de Servicio" x-on:change="serviceType = $event.target.value; handleTypeChange();">
-                            <flux:select.option value="mesa">En Mesa</flux:select.option>
-                            <flux:select.option value="llevar">Para Llevar</flux:select.option>
-                        </flux:select>
+                        <label class="block space-y-1">
+                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Comentario (opcional)</span>
+                            <textarea name="comment" rows="3" x-model="comment" x-on:input="saveDraft" class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900" placeholder="Notas para cocina o entrega"></textarea>
+                        </label>
+
+                        <label class="block space-y-1">
+                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tipo de Servicio</span>
+                            <select name="type" x-model="serviceType" @change="serviceType = $event.target.value; handleTypeChange(); saveDraft();" class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900">
+                                <option value="mesa">En Mesa</option>
+                                <option value="llevar">Para Llevar</option>
+                            </select>
+                        </label>
 
                         <div x-show="serviceType === 'mesa'" x-cloak class="space-y-2">
                             <div class="flex items-start justify-between gap-2">
@@ -108,6 +124,9 @@
                             </template>
 
                             <p x-show="totalTables === 0" class="text-sm text-red-600">Configura la cantidad total de mesas en Administración.</p>
+                            @error('tables')
+                                <p class="text-sm text-red-600">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <hr class="dark:border-zinc-700">
@@ -119,9 +138,12 @@
     </div>
 
     <script>
-        function orderFormComponent({ totalTables = 0, presetTables = [], presetSelection = [], tableSelectUrl = '', products = [], categories = [] }) {
+        function orderFormComponent({ totalTables = 0, presetTables = [], presetSelection = [], tableSelectUrl = '', products = [], categories = [], initialServiceType = 'mesa', initialCustomerName = '', initialComment = '' }) {
             return {
-                serviceType: 'mesa',
+                persistKey: 'order_form_draft',
+                serviceType: initialServiceType || 'mesa',
+                customerName: initialCustomerName || '',
+                comment: initialComment || '',
                 totalTables,
                 tableNumbers: presetTables.length ? presetTables : Array.from({ length: totalTables }, (_, idx) => idx + 1),
                 selectedTables: presetSelection,
@@ -130,14 +152,56 @@
                 categories,
                 currentCategory: null,
                 selectedMap: {},
+                init() {
+                    const saved = this.loadDraft();
+                    if (saved) {
+                        this.serviceType = saved.serviceType || this.serviceType;
+                        this.selectedMap = saved.selectedMap || {};
+                        this.customerName = saved.customerName || '';
+                        this.comment = saved.comment || '';
+                        if (!this.selectedTables.length && Array.isArray(saved.selectedTables)) {
+                            this.selectedTables = saved.selectedTables;
+                        }
+                    }
+
+                    if (this.serviceType !== 'mesa') {
+                        this.selectedTables = [];
+                    }
+
+                    this.saveDraft();
+                },
+                loadDraft() {
+                    try {
+                        const raw = localStorage.getItem(this.persistKey);
+                        return raw ? JSON.parse(raw) : null;
+                    } catch (error) {
+                        console.error('No se pudo cargar el borrador del pedido', error);
+                        return null;
+                    }
+                },
+                saveDraft() {
+                    const payload = {
+                        serviceType: this.serviceType,
+                        selectedTables: this.selectedTables,
+                        selectedMap: this.selectedMap,
+                        customerName: this.customerName,
+                        comment: this.comment,
+                    };
+                    localStorage.setItem(this.persistKey, JSON.stringify(payload));
+                },
+                clearDraft() {
+                    localStorage.removeItem(this.persistKey);
+                },
                 isSelected(table) {
                     return this.selectedTables.includes(table);
                 },
                 clearSelection() {
                     this.selectedTables = [];
+                    this.saveDraft();
                 },
                 clearProducts() {
                     this.selectedMap = {};
+                    this.saveDraft();
                 },
                 selectionLabel() {
                     if (this.serviceType !== 'mesa') {
@@ -155,8 +219,10 @@
                     if (this.serviceType !== 'mesa') {
                         this.selectedTables = [];
                     }
+                    this.saveDraft();
                 },
                 goToTableSelector() {
+                    this.saveDraft();
                     const params = new URLSearchParams();
                     this.selectedTables.forEach((table) => params.append('tables[]', table));
                     window.location.href = params.toString()
@@ -167,10 +233,12 @@
                     const existing = this.selectedMap[product.id] ?? { ...product, quantity: 0 };
                     existing.quantity += 1;
                     this.selectedMap[product.id] = existing;
+                    this.saveDraft();
                 },
                 increment(productId) {
                     if (!this.selectedMap[productId]) return;
                     this.selectedMap[productId].quantity += 1;
+                    this.saveDraft();
                 },
                 decrement(productId) {
                     if (!this.selectedMap[productId]) return;
@@ -178,6 +246,7 @@
                     if (this.selectedMap[productId].quantity <= 0) {
                         delete this.selectedMap[productId];
                     }
+                    this.saveDraft();
                 },
                 get selectedList() {
                     return Object.values(this.selectedMap);

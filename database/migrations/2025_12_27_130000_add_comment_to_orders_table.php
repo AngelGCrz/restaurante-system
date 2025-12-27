@@ -8,15 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
-            $table->id();
-            $table->string('name')->unique();
-            $table->timestamps();
+        Schema::table('orders', function (Blueprint $table) {
+            $table->text('comment')->nullable()->after('customer_name');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('categories');
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropColumn('comment');
+        });
     }
 };

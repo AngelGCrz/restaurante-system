@@ -90,6 +90,7 @@ class OrderController extends Controller
             'tables' => $selectedTables,
         ])->validate([
             'customer_name' => 'nullable|string',
+            'comment' => 'nullable|string',
             'type' => 'required|in:mesa,llevar',
             'tables' => 'required_if:type,mesa|array|min:1',
             'tables.*' => 'integer|min:1|max:' . max($tableCount, 1),
@@ -126,6 +127,7 @@ class OrderController extends Controller
             $order = Order::create([
                 'user_id' => $request->user()->id,
                 'customer_name' => $validated['customer_name'],
+                'comment' => $validated['comment'] ?? null,
                 'type' => $validated['type'],
                 'table_numbers' => $validated['type'] === 'mesa' ? $validated['tables'] : [],
                 'total' => 0,

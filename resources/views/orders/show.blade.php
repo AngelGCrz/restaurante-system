@@ -54,6 +54,12 @@
                             <span class="text-zinc-500">Cliente:</span>
                             <span class="font-medium">{{ $order->customer_name ?? 'N/A' }}</span>
                         </div>
+                        @if($order->comment)
+                            <div>
+                                <span class="text-zinc-500 block">Comentario:</span>
+                                <p class="mt-1 text-sm">{{ $order->comment }}</p>
+                            </div>
+                        @endif
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Servicio:</span>
                             <span class="font-medium">{{ $order->table_label }}</span>
