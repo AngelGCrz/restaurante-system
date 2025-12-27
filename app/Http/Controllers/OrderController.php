@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Setting;
@@ -26,7 +27,10 @@ class OrderController extends Controller
 
     public function create()
     {
-        $products = Product::where('is_available', true)->get();
+        $products = Product::where('is_available', true)
+            ->select('id', 'name', 'price', 'category_id', 'is_available')
+            ->get();
+        $categories = Category::select('id', 'name')->orderBy('name')->get();
         $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
         $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
 
@@ -37,7 +41,7 @@ class OrderController extends Controller
             ->values()
             ->all();
 
-        return view('orders.create', compact('products', 'tableCount', 'tableNumbers', 'selectedTables'));
+        return view('orders.create', compact('products', 'categories', 'tableCount', 'tableNumbers', 'selectedTables'));
     }
 
     public function selectTables()
