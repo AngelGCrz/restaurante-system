@@ -255,7 +255,8 @@
                     if (!this.currentCategory) {
                         return this.products;
                     }
-                    return this.products.filter((product) => product.category_id === this.currentCategory);
+                    const current = String(this.currentCategory);
+                    return this.products.filter((product) => String(product.category_id) === current);
                 },
                 currency(value) {
                     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
