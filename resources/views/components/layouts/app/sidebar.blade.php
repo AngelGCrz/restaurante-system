@@ -19,6 +19,7 @@
                 @if(auth()->user()->role->name === 'admin')
                     <flux:navlist.group heading="Administración" class="grid">
                         <flux:navlist.item icon="shopping-bag" :href="route('admin.products.index')" :current="request()->routeIs('admin.products.*')" wire:navigate>Productos</flux:navlist.item>
+                        <flux:navlist.item icon="users" :href="route('admin.users.index')" :current="request()->routeIs('admin.users.*')" wire:navigate>Cuentas</flux:navlist.item>
                         @if (Route::has('admin.categories.index'))
                             <flux:navlist.item icon="swatch" :href="route('admin.categories.index')" :current="request()->routeIs('admin.categories.*')" wire:navigate>Categorías</flux:navlist.item>
                         @endif
