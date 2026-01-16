@@ -28,7 +28,7 @@ class OrderController extends Controller
     public function create()
     {
         $products = Product::where('is_available', true)
-            ->select('id', 'name', 'price', 'category_id', 'is_available')
+            ->select('id', 'name', 'price', 'category_id', 'is_available', 'stock')
             ->get();
         $categories = Category::select('id', 'name')->orderBy('name')->get();
         $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
@@ -125,7 +125,32 @@ class OrderController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated) {
+        // Stock settings
+        $stockEnabled = (bool) Setting::getValue('stock_enabled', false);
+        $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
+
+        // If stock tracking is enabled, validate all items have enough stock
+        if ($stockEnabled) {
+            $insufficient = [];
+            foreach ($validated['items'] as $item) {
+                $product = Product::find($item['product_id']);
+                if (! $product) {
+                    continue;
+                }
+
+                if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
+                    $insufficient[] = $product->name . ' (disponible: ' . $product->stock . ')';
+                }
+            }
+
+            if (! empty($insufficient)) {
+                return back()->withErrors([
+                    'items' => 'Stock insuficiente para: ' . implode(', ', $insufficient),
+                ])->withInput();
+            }
+        }
+
+        return DB::transaction(function () use ($request, $validated, $stockEnabled, $stockAllowNegative) {
             $order = Order::create([
                 'user_id' => $request->user()->id,
                 'customer_name' => $validated['customer_name'],
@@ -149,6 +174,11 @@ class OrderController extends Controller
                     'quantity' => $item['quantity'],
                     'price' => $product->price,
                 ]);
+
+                // Decrement stock if enabled
+                if ($stockEnabled) {
+                    $product->decreaseStock((int) $item['quantity'], $stockAllowNegative);
+                }
 
                 $total += $subtotal;
             }

@@ -31,6 +31,11 @@
                 </div>
 
                 <div>
+                    <label class="text-sm font-medium">Stock</label>
+                    <input type="number" name="stock" step="1" min="-999999" value="{{ old('stock', $product->stock ?? 0) }}" required class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" />
+                </div>
+
+                <div>
                     <label class="text-sm font-medium">Descripción (Opcional)</label>
                     <textarea name="description" class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" rows="3">{{ old('description', $product->description) }}</textarea>
                 </div>

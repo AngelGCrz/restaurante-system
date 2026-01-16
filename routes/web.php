@@ -24,6 +24,8 @@ Route::middleware(['auth'])->group(function () {
     // Rutas para Admin
     Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::resource('products', ProductController::class);
+        Route::get('settings/stock', [\App\Http\Controllers\Admin\StockSettingsController::class, 'edit'])->name('settings.stock.edit');
+        Route::put('settings/stock', [\App\Http\Controllers\Admin\StockSettingsController::class, 'update'])->name('settings.stock.update');
         Route::resource('users', UserController::class)->except(['show']);
         Route::get('tables', [TableSettingsController::class, 'edit'])->name('tables.edit');
         Route::put('tables', [TableSettingsController::class, 'update'])->name('tables.update');

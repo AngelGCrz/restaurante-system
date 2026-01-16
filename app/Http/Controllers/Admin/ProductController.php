@@ -34,8 +34,10 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
+            'stock' => 'nullable|integer',
         ]);
 
+        $validated['stock'] = (int) ($validated['stock'] ?? 0);
         Product::create($validated + ['is_available' => true]);
 
         return redirect()->route('admin.products.index')->with('success', 'Producto creado.');
@@ -57,9 +59,12 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'is_available' => 'sometimes|boolean',
+            'stock' => 'nullable|integer',
         ]);
 
         $validated['is_available'] = $request->boolean('is_available');
+
+        $validated['stock'] = (int) ($validated['stock'] ?? $product->stock ?? 0);
 
         $product->update($validated);
 

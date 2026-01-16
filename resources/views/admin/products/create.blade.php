@@ -12,6 +12,7 @@
                     @endforeach
                 </flux:select>
                 <flux:input name="price" label="Precio" type="number" step="0.01" required />
+                <flux:input name="stock" label="Stock inicial" type="number" step="1" />
                 <flux:textarea name="description" label="Descripción (Opcional)" />
                 <div class="flex justify-end gap-2">
                     <flux:button variant="subtle" href="{{ route('admin.products.index') }}">Cancelar</flux:button>
