@@ -35,7 +35,8 @@
                         <template x-for="product in filteredProducts" :key="product.id">
                             <button
                                 type="button"
-                                class="relative flex flex-col items-start rounded-lg border border-zinc-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900"
+                                :disabled="product.sold_out"
+                                :class="product.sold_out ? 'opacity-50 cursor-not-allowed relative flex flex-col items-start rounded-lg border border-zinc-200 bg-white p-4 text-left shadow-sm transition dark:border-zinc-700 dark:bg-zinc-900' : 'relative flex flex-col items-start rounded-lg border border-zinc-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900'"
                                 @click="addProduct(product)"
                             >
                                 <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
@@ -43,6 +44,8 @@
                                 </div>
                                 <p class="font-semibold" x-text="product.name"></p>
                                 <p class="text-sm text-zinc-500" x-text="currency(product.price)"></p>
+                                <p class="text-xs text-rose-600 mt-2" x-show="product.sold_out" x-cloak>Agotado</p>
+                                <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
                             </button>
                         </template>
                         <p x-show="!filteredProducts.length" class="col-span-full text-sm text-zinc-500" x-cloak>No hay productos en esta categoría.</p>
@@ -230,6 +233,7 @@
                         : this.tableSelectUrl;
                 },
                 addProduct(product) {
+                    if (product.sold_out) return;
                     const existing = this.selectedMap[product.id] ?? { ...product, quantity: 0 };
                     existing.quantity += 1;
                     this.selectedMap[product.id] = existing;

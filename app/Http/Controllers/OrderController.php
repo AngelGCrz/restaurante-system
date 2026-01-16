@@ -30,6 +30,25 @@ class OrderController extends Controller
         $products = Product::where('is_available', true)
             ->select('id', 'name', 'price', 'category_id', 'is_available', 'stock')
             ->get();
+        // stock settings configured by admin
+        $stockEnabled = (bool) Setting::getValue('stock_enabled', false);
+        $stockMinimum = Setting::getValue('stock_minimum_threshold', null);
+        $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
+
+        $products = $products->map(function ($p) use ($stockEnabled, $stockMinimum, $stockAllowNegative) {
+            $stock = (int) $p->stock;
+            return [
+                'id' => $p->id,
+                'name' => $p->name,
+                'price' => $p->price,
+                'category_id' => $p->category_id,
+                'is_available' => (bool) $p->is_available,
+                'stock' => $stock,
+                'low_stock' => $stockEnabled && $stockMinimum !== null && $stock <= $stockMinimum && $stock > 0,
+                'sold_out' => $stockEnabled && $stock <= 0,
+                'allow_negative' => $stockAllowNegative,
+            ];
+        })->values();
         $categories = Category::select('id', 'name')->orderBy('name')->get();
         $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
         $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
@@ -135,6 +154,12 @@ class OrderController extends Controller
             foreach ($validated['items'] as $item) {
                 $product = Product::find($item['product_id']);
                 if (! $product) {
+                    continue;
+                }
+
+                // If stock tracking is enabled and product has zero or less, it's sold out and cannot be ordered
+                if ($product->stock <= 0) {
+                    $insufficient[] = $product->name . ' (agotado)';
                     continue;
                 }
 

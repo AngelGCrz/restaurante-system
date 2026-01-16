@@ -24,6 +24,12 @@
                     Permitir stock negativo
                 </label>
 
+                <label class="block text-sm font-medium">
+                    <span>Umbral mínimo de stock (advertencia para mozo)</span>
+                    <input type="number" name="stock_minimum_threshold" min="0" value="{{ isset($stockMinimum) ? $stockMinimum : '' }}" class="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900">
+                    <p class="text-xs text-zinc-500 mt-1">Si se establece, los mozos verán una advertencia cuando el stock del producto sea menor o igual a este valor. Dejar vacío para desactivar.</p>
+                </label>
+
                 <div class="flex justify-end gap-2 pt-2">
                     <flux:button variant="subtle" href="{{ route('admin.products.index') }}">Cancelar</flux:button>
                     <flux:button variant="primary" type="submit">Guardar</flux:button>
