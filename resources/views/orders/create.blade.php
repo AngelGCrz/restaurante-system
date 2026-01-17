@@ -141,6 +141,52 @@
     </div>
 
     <script>
+        // Simple toast helper for non-blocking notifications
+        window.showToast = function(message, variant = 'error') {
+            const containerId = 'app-toasts-container';
+            let container = document.getElementById(containerId);
+            if (!container) {
+                container = document.createElement('div');
+                container.id = containerId;
+                container.style.position = 'fixed';
+                container.style.right = '16px';
+                container.style.top = '16px';
+                container.style.zIndex = 9999;
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.marginTop = '8px';
+            toast.style.padding = '10px 14px';
+            toast.style.borderRadius = '8px';
+            toast.style.color = '#fff';
+            toast.style.fontSize = '13px';
+            toast.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 200ms ease, transform 200ms ease';
+
+            if (variant === 'success') {
+                toast.style.background = '#16a34a';
+            } else {
+                toast.style.background = '#dc2626';
+            }
+
+            container.appendChild(toast);
+
+            // force reflow then show
+            // eslint-disable-next-line no-unused-expressions
+            toast.offsetWidth;
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0)';
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-8px)';
+                setTimeout(() => container.removeChild(toast), 300);
+            }, 3000);
+        };
+
         function orderFormComponent({ totalTables = 0, presetTables = [], presetSelection = [], tableSelectUrl = '', products = [], categories = [], initialServiceType = 'mesa', initialCustomerName = '', initialComment = '' }) {
             return {
                 persistKey: 'order_form_draft',
@@ -262,7 +308,7 @@
                     const startingQty = existing.quantity > 0 ? existing.quantity : 0;
                     const newQty = startingQty + 1;
                     if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
-                        alert('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
+                        showToast('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
                         return;
                     }
                     existing.quantity = newQty;
@@ -276,7 +322,7 @@
                     const product = this.products.find(p => p.id == productId) || item;
                     const newQty = item.quantity + 1;
                     if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
-                        alert('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
+                        showToast('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
                         return;
                     }
                     this.selectedMap[productId].quantity = newQty;

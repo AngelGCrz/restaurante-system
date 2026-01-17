@@ -85,7 +85,11 @@
     @if(session('paid'))
         <script>
             window.addEventListener('load', () => {
-                alert('PAGO REALIZADO');
+                if (window.showToast) {
+                    showToast('PAGO REALIZADO', 'success');
+                } else {
+                    alert('PAGO REALIZADO');
+                }
             });
         </script>
     @endif
