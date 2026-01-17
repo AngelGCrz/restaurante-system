@@ -27,7 +27,13 @@
                             <td class="py-3">{{ $product->name }}</td>
                             <td class="py-3">{{ $product->category->name ?? 'Sin categoría' }}</td>
                             <td class="py-3">${{ number_format($product->price, 2) }}</td>
-                            <td class="py-3">{{ $product->stock ?? 0 }}</td>
+                            <td class="py-3">
+                                @if(($stockEnabled ?? false) && ($product->stock ?? 0) <= 0)
+                                    <span class="text-xs text-rose-600 font-semibold">Agotado</span>
+                                @else
+                                    {{ $product->stock ?? 0 }}
+                                @endif
+                            </td>
                             <td class="py-3">
                                 <span class="rounded-full px-2 py-1 text-xs {{ $product->is_available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
                                     {{ $product->is_available ? 'Disponible' : 'No disponible' }}

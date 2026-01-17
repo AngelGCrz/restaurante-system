@@ -44,7 +44,7 @@
                                 </div>
                                 <p class="font-semibold" x-text="product.name"></p>
                                 <p class="text-sm text-zinc-500" x-text="currency(product.price)"></p>
-                                <p class="text-xs text-rose-600 mt-2" x-show="product.sold_out" x-cloak>Agotado</p>
+                                <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
                                 <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
                             </button>
                         </template>
@@ -171,7 +171,30 @@
                         this.selectedTables = [];
                     }
 
-                    this.saveDraft();
+                    // Clean stale items from saved draft: remove if product no longer present or stock insufficient
+                    const ids = Object.keys(this.selectedMap || {});
+                    let changed = false;
+                    ids.forEach((id) => {
+                        const item = this.selectedMap[id];
+                        const product = this.products.find(p => p.id == id);
+                        // if product not found (e.g., filtered out because sold out) or product stock insufficient now, remove
+                        if (!product) {
+                            delete this.selectedMap[id];
+                            changed = true;
+                            return;
+                        }
+
+                        if ((product.sold_out) || (!product.allow_negative && typeof product.stock === 'number' && item.quantity > product.stock)) {
+                            delete this.selectedMap[id];
+                            changed = true;
+                        }
+                    });
+
+                    if (changed) {
+                        this.saveDraft();
+                    } else {
+                        this.saveDraft();
+                    }
                 },
                 loadDraft() {
                     try {
@@ -235,13 +258,28 @@
                 addProduct(product) {
                     if (product.sold_out) return;
                     const existing = this.selectedMap[product.id] ?? { ...product, quantity: 0 };
-                    existing.quantity += 1;
+                    // If not previously selected, start at 1
+                    const startingQty = existing.quantity > 0 ? existing.quantity : 0;
+                    const newQty = startingQty + 1;
+                    if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
+                        alert('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
+                        return;
+                    }
+                    existing.quantity = newQty;
                     this.selectedMap[product.id] = existing;
                     this.saveDraft();
                 },
                 increment(productId) {
                     if (!this.selectedMap[productId]) return;
-                    this.selectedMap[productId].quantity += 1;
+                    const item = this.selectedMap[productId];
+                    // find product using loose equality to avoid type mismatch
+                    const product = this.products.find(p => p.id == productId) || item;
+                    const newQty = item.quantity + 1;
+                    if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
+                        alert('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
+                        return;
+                    }
+                    this.selectedMap[productId].quantity = newQty;
                     this.saveDraft();
                 },
                 decrement(productId) {

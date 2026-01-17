@@ -27,6 +27,7 @@ class OrderController extends Controller
 
     public function create()
     {
+        // Load products for waiter view (show sold-out as disabled badge instead of hiding)
         $products = Product::where('is_available', true)
             ->select('id', 'name', 'price', 'category_id', 'is_available', 'stock')
             ->get();
@@ -175,45 +176,77 @@ class OrderController extends Controller
             }
         }
 
-        return DB::transaction(function () use ($request, $validated, $stockEnabled, $stockAllowNegative) {
-            $order = Order::create([
-                'user_id' => $request->user()->id,
-                'customer_name' => $validated['customer_name'],
-                'comment' => $validated['comment'] ?? null,
-                'type' => $validated['type'],
-                'table_numbers' => $validated['type'] === 'mesa' ? $validated['tables'] : [],
-                'total' => 0,
-            ]);
+        try {
+            $order = DB::transaction(function () use ($request, $validated, $stockEnabled, $stockAllowNegative) {
+                // Re-check stock with row locking to avoid race conditions
+                $insufficient = [];
+                foreach ($validated['items'] as $item) {
+                    $product = Product::lockForUpdate()->find($item['product_id']);
+                    if (! $product) {
+                        continue;
+                    }
 
-            $total = 0;
-            foreach ($validated['items'] as $item) {
-                $product = Product::find($item['product_id']);
-                if (! $product) {
-                    continue;
+                    if ($stockEnabled) {
+                        if ($product->stock <= 0) {
+                            $insufficient[] = $product->name . ' (agotado)';
+                            continue;
+                        }
+
+                        if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
+                            $insufficient[] = $product->name . ' (disponible: ' . $product->stock . ')';
+                        }
+                    }
                 }
 
-                $subtotal = $product->price * $item['quantity'];
+                if (! empty($insufficient)) {
+                    throw new \RuntimeException(implode(', ', $insufficient));
+                }
 
-                $order->items()->create([
-                    'product_id' => $product->id,
-                    'quantity' => $item['quantity'],
-                    'price' => $product->price,
+                $order = Order::create([
+                    'user_id' => $request->user()->id,
+                    'customer_name' => $validated['customer_name'],
+                    'comment' => $validated['comment'] ?? null,
+                    'type' => $validated['type'],
+                    'table_numbers' => $validated['type'] === 'mesa' ? $validated['tables'] : [],
+                    'total' => 0,
                 ]);
 
-                // Decrement stock if enabled
-                if ($stockEnabled) {
-                    $product->decreaseStock((int) $item['quantity'], $stockAllowNegative);
+                $total = 0;
+                foreach ($validated['items'] as $item) {
+                    $product = Product::lockForUpdate()->find($item['product_id']);
+                    if (! $product) {
+                        continue;
+                    }
+
+                    $subtotal = $product->price * $item['quantity'];
+
+                    $order->items()->create([
+                        'product_id' => $product->id,
+                        'quantity' => $item['quantity'],
+                        'price' => $product->price,
+                    ]);
+
+                    // Decrement stock if enabled
+                    if ($stockEnabled) {
+                        $product->decreaseStock((int) $item['quantity'], $stockAllowNegative);
+                    }
+
+                    $total += $subtotal;
                 }
 
-                $total += $subtotal;
-            }
+                $order->update(['total' => $total]);
 
-            $order->update(['total' => $total]);
+                return $order;
+            });
 
             // Redireccionar según el rol para evitar 403 si la ruta 'orders.show' solo es para cajeros
             $route = $request->user()->role->name === 'mozo' ? 'mozo.orders.show' : 'orders.show';
             return redirect()->route($route, $order)->with('success', 'Pedido registrado.');
-        });
+        } catch (\RuntimeException $e) {
+            return back()->withErrors([
+                'items' => 'Stock insuficiente para: ' . $e->getMessage(),
+            ])->withInput();
+        }
     }
 
     public function pay(Request $request, Order $order)

@@ -12,7 +12,8 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::with('category')->orderBy('name')->get();
-        return view('admin.products.index', compact('products'));
+        $stockEnabled = (bool) \App\Models\Setting::getValue('stock_enabled', false);
+        return view('admin.products.index', compact('products', 'stockEnabled'));
     }
 
     public function create()
