@@ -24,26 +24,30 @@
             <div class="space-y-6 lg:col-span-2">
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
                     <div class="mb-4 flex flex-wrap items-center gap-2">
-                        <button type="button" class="rounded-full border px-3 py-1 text-sm font-medium transition hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700" :class="!currentCategory ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black' : ''" @click="currentCategory = null">Todas</button>
+                        {{-- <button type="button" class="rounded-full border px-3 py-1 text-sm font-medium transition hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700" :class="!currentCategory ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black' : ''" @click="currentCategory = null">Todas</button> --}}
                         <template x-for="cat in categories" :key="cat.id">
                             <button type="button" class="rounded-full border px-3 py-1 text-sm font-medium transition hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700" :class="currentCategory === cat.id ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black' : ''" @click="currentCategory = cat.id" x-text="cat.name"></button>
                         </template>
                     </div>
 
                     <h2 class="mb-4 text-lg font-semibold">Productos Disponibles</h2>
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                         <template x-for="product in filteredProducts" :key="product.id">
                             <button
-                                type="button"
-                                :disabled="product.sold_out"
-                                :class="product.sold_out ? 'opacity-50 cursor-not-allowed relative flex flex-col items-start rounded-lg border border-zinc-200 bg-white p-4 text-left shadow-sm transition dark:border-zinc-700 dark:bg-zinc-900' : 'relative flex flex-col items-start rounded-lg border border-zinc-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900'"
-                                @click="addProduct(product)"
-                            >
+                type="button"
+                :disabled="product.sold_out"
+                :class="product.sold_out
+                    ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
+                    : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
+                @click="addProduct(product)"
+            >
+
+        
                                 <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
                                     <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
                                 </div>
-                                <p class="font-semibold" x-text="product.name"></p>
-                                <p class="text-sm text-zinc-500" x-text="currency(product.price)"></p>
+                                <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
+                                <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
                                 <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
                                 <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
                             </button>
@@ -199,7 +203,7 @@
                 tableSelectUrl,
                 products,
                 categories,
-                currentCategory: null,
+                currentCategory: 1,
                 selectedMap: {},
                 init() {
                     const saved = this.loadDraft();
