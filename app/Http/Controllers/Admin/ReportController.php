@@ -108,9 +108,9 @@ class ReportController extends Controller
             $rows = [];
             // Header depends on breakdown
             if ($breakdown) {
-                $rows[] = ['Fecha', 'Pedidos', 'Total ventas', 'Promedio por ticket', 'Pendiente', 'Cobrado', 'Cancelado', 'Cancelación %'];
+                $rows[] = ['Fecha', 'Pedidos', 'Total ventas', 'Venta promedio por pedido', 'Pendiente', 'Cobrado', 'Cancelado', 'Cancelación %'];
             } else {
-                $rows[] = ['Fecha', 'Pedidos', 'Total ventas', 'Promedio por ticket', 'Cancelación %'];
+                $rows[] = ['Fecha', 'Pedidos', 'Total ventas', 'Venta promedio por pedido', 'Cancelación %'];
             }
 
             foreach ($perDay as $row) {

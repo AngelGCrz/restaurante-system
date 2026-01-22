@@ -37,7 +37,7 @@
                     <div class="text-xl font-bold text-zinc-900 dark:text-zinc-100">${{ number_format($totals->total_sales ?? 0, 2) }}</div>
                 </div>
                 <div class="p-3 border rounded border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
-                    <div class="text-sm text-zinc-500 dark:text-zinc-400">Promedio por ticket</div>
+                    <div class="text-sm text-zinc-500 dark:text-zinc-400">Venta promedio por pedido</div>
                     <div class="text-xl font-bold text-zinc-900 dark:text-zinc-100">${{ number_format($totals->avg_ticket ?? 0, 2) }}</div>
                 </div>
                 @if(request()->boolean('breakdown'))
