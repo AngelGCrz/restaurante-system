@@ -265,6 +265,24 @@ class OrderController extends Controller
             ]);
     }
 
+    /**
+     * Cancel an order (mark as 'cancelado'). Only allowed when pending.
+     */
+    public function cancel(Request $request, Order $order)
+    {
+        if ($order->status === 'cancelado') {
+            return redirect()->route('orders.show', $order)->with('info', 'El pedido ya está cancelado.');
+        }
+
+        if ($order->status === 'pagado') {
+            return redirect()->route('orders.show', $order)->withErrors(['order' => 'No se puede cancelar un pedido ya cobrado.']);
+        }
+
+        $order->update(['status' => 'cancelado']);
+
+        return redirect()->route('orders.show', $order)->with('success', 'Pedido cancelado.');
+    }
+
     public function show(Order $order)
     {
         $order->load('items.product');

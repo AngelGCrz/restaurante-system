@@ -46,6 +46,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:cajero'])->group(function () {
         Route::resource('orders', OrderController::class)->only(['index', 'show']);
         Route::post('orders/{order}/pay', [OrderController::class, 'pay'])->name('orders.pay');
+        Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
         Route::get('cash', [CashController::class, 'index'])->name('cash.index');
         Route::post('cash/open', [CashController::class, 'open'])->name('cash.open');
         Route::post('cash/close', [CashController::class, 'close'])->name('cash.close');

@@ -56,7 +56,7 @@
                 @endif
             </div>
 
-            <h2 class="font-semibold mb-2">Detalle por día</h2>
+            <h2 class="font-semibold mb-2">Detalle por día (Pedidos Totales)</h2>
             <table class="w-full text-left text-zinc-900 dark:text-zinc-100">
                 <thead>
                     <tr class="border-b">
@@ -68,7 +68,14 @@
                             <th class="py-2">Pendiente</th>
                             <th class="py-2">Cobrado</th>
                             <th class="py-2">Cancelado</th>
+                             <th class="py-2">%Cancelado</th>
                         @endif
+                        <!-- @if(request()->boolean('breakdown'))
+                            <th class="py-2">Cobrado</th>
+                            <th class="py-2">Cancelado</th>
+                            <th class="py-2">%Cancelado</th>
+                        @endif -->
+
                     </tr>
                 </thead>
                 <tbody>
@@ -82,6 +89,9 @@
                                         <td class="py-2">{{ $row->pending_count ?? 0 }}</td>
                                         <td class="py-2">{{ $row->paid_count ?? 0 }}</td>
                                         <td class="py-2">{{ $row->cancelled_count ?? 0 }}</td>
+                                        <td class="py-2 {{ ($row->cancelled_pct ?? 0) > 30 ? 'text-red-600' : '' }}">
+                                            {{ round($row->cancelled_pct ?? 0) }}%
+                                        </td>
                                     @endif
                             </tr>
                     @empty

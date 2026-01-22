@@ -31,8 +31,14 @@
                                     {{ ucfirst($order->status) }}
                                 </span>
                             </td>
-                            <td class="py-3">
+                            <td class="py-3 flex items-center gap-2">
                                 <flux:button size="sm" variant="subtle" href="{{ route('orders.show', $order) }}">Ver</flux:button>
+                                @if($order->status === 'pendiente' && auth()->check() && auth()->user()->role->name === 'cajero')
+                                    <form action="{{ route('orders.cancel', $order) }}" method="POST" onsubmit="return confirm('¿Confirmar cancelación del pedido #{{ $order->id }}?');">
+                                        @csrf
+                                        <flux:button type="submit" size="sm" variant="danger">Cancelar</flux:button>
+                                    </form>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

@@ -70,10 +70,15 @@
                         </div>
                     </div>
                     @if($order->status === 'pendiente' && auth()->user()->role->name === 'cajero')
-                        <div class="mt-6">
+                        <div class="mt-6 space-y-3">
                             <form action="{{ route('orders.pay', $order) }}" method="POST">
                                 @csrf
                                 <flux:button type="submit" variant="primary" class="w-full">Registrar Pago</flux:button>
+                            </form>
+
+                            <form action="{{ route('orders.cancel', $order) }}" method="POST" onsubmit="return confirm('¿Confirmar cancelación del pedido #{{ $order->id }}?');">
+                                @csrf
+                                <flux:button type="submit" variant="danger" class="w-full">Cancelar Pedido</flux:button>
                             </form>
                         </div>
                     @endif
