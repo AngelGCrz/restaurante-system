@@ -14,6 +14,7 @@ class OrderController extends Controller
 {
     public function index()
     {
+        
         $query = Order::with(['user'])->orderBy('created_at', 'desc');
 
         // En caja se prioriza ver pagos; mantenemos pendiente visibles para poder cobrarlos
@@ -90,6 +91,7 @@ class OrderController extends Controller
 
     public function store(Request $request)
     {
+        
         // Filtrar items con cantidad > 0 para evitar validaciones con ceros
         $filteredItems = collect($request->input('items', []))
             ->filter(fn ($item) => isset($item['quantity']) && (int) $item['quantity'] > 0)
@@ -119,6 +121,8 @@ class OrderController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.comment' => 'nullable|string',
+
         ]);
 
         if ($validated['type'] === 'mesa' && $tableCount === 0) {
@@ -221,10 +225,12 @@ class OrderController extends Controller
                     $subtotal = $product->price * $item['quantity'];
 
                     $order->items()->create([
-                        'product_id' => $product->id,
-                        'quantity' => $item['quantity'],
-                        'price' => $product->price,
-                    ]);
+                    'product_id' => $product->id,
+                    'quantity' => $item['quantity'],
+                    'price' => $product->price,
+                    'comment' => $item['comment'] ?? null,
+                ]);
+
 
                     // Decrement stock if enabled
                     if ($stockEnabled) {

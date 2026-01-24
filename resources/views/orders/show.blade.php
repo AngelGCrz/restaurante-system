@@ -23,14 +23,31 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+
                             @foreach($order->items as $item)
-                                <tr>
+                            <tr>
                                     <td class="py-3">{{ $item->product->name }}</td>
                                     <td class="py-3">{{ $item->quantity }}</td>
                                     <td class="py-3 text-right">${{ number_format($item->price, 2) }}</td>
                                     <td class="py-3 text-right">${{ number_format($item->price * $item->quantity, 2) }}</td>
                                 </tr>
-                            @endforeach
+    <div class="mb-3 rounded-lg border p-3">
+        <div class="flex justify-between">
+            <div>
+                <p class="font-semibold">{{ $item->product->name }}</p>
+                <p class="text-sm text-gray-500">Cantidad: {{ $item->quantity }}</p>
+
+                @if($item->comment)
+                    <p class="mt-1 text-sm text-blue-600 font-medium">
+                        📝 {{ $item->comment }}
+                    </p>
+                @endif
+            </div>
+            <p class="font-semibold">{{ number_format($item->price * $item->quantity, 2) }}</p>
+        </div>
+    </div>
+@endforeach
+
                         </tbody>
                         <tfoot>
                             <tr>

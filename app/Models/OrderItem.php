@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
-    protected $fillable = ['order_id', 'product_id', 'quantity', 'price'];
+    protected $fillable = ['order_id', 'product_id', 'quantity', 'price','comment'];
 
     public function order(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
