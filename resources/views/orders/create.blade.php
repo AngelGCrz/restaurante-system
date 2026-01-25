@@ -84,6 +84,7 @@
                                     <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="decrement(item.id)">-</button>
                                     <span class="min-w-[24px] text-center text-sm font-semibold" x-text="item.quantity"></span>
                                     <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="increment(item.id)">+</button>
+                                    <button type="button" class="text-xs text-blue-600 underline" @click="openCommentModal(item)">Comentario</button>
                                 </div>
                             </div>
                         </template>
@@ -94,6 +95,7 @@
                         <div>
                             <input type="hidden" :name="`items[${index}][product_id]`" :value="item.id">
                             <input type="hidden" :name="`items[${index}][quantity]`" :value="item.quantity">
+                            <input type="hidden" :name="`items[${index}][comment]`" :value="item.comment || ''">
                         </div>
                     </template>
                 </div>
@@ -151,6 +153,23 @@
                     </div>
                 </div>
             </div>
+                <div x-show="showCommentModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div class="bg-white dark:bg-zinc-800 rounded-xl p-6 w-full max-w-md">
+                        <h3 class="text-lg font-semibold mb-2">
+                            Comentario para: <span class="font-bold" x-text="currentCommentItem?.name"></span>
+                        </h3>
+                        <textarea rows="4"
+                                class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                                x-model="currentCommentText">
+                        </textarea>
+                        <div class="mt-4 flex justify-end gap-2">
+                            <button type="button" class="px-4 py-2 rounded-lg border" @click="closeCommentModal">Cancelar</button>
+                            <button type="button" class="px-4 py-2 rounded-lg bg-zinc-900 text-white" @click="saveItemComment">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         </form>
     </div>
 
@@ -207,6 +226,9 @@
                 serviceType: initialServiceType || 'mesa',
                 customerName: initialCustomerName || '',
                 comment: initialComment || '',
+                showCommentModal: false,
+                currentCommentItem: null,
+                currentCommentText: '',
                 totalTables,
                 tableNumbers: presetTables.length ? presetTables : Array.from({ length: totalTables }, (_, idx) => idx + 1),
                 selectedTables: presetSelection,
@@ -329,6 +351,32 @@
                     this.selectedMap[product.id] = existing;
                     this.saveDraft();
                 },
+                //MODAL
+                openCommentModal(item) {
+                this.currentCommentItem = item;
+                this.currentCommentText = item.comment || '';
+                this.showCommentModal = true;
+            },
+            closeCommentModal() {
+                this.showCommentModal = false;
+                this.currentCommentItem = null;
+                this.currentCommentText = '';
+            },
+            saveItemComment() {
+                if (this.currentCommentItem) {
+                    const id = this.currentCommentItem.id;
+                
+                    // Actualizar directamente en selectedMap
+                    this.selectedMap[id] = {
+                        ...this.selectedMap[id],
+                        comment: this.currentCommentText
+                    };
+                
+                    this.saveDraft();
+                }
+                this.closeCommentModal();
+            },
+            //END MODAL
                 itemSubtotal(item) {
                     return (Number(item.price) || 0) * (Number(item.quantity) || 0);
                 },
