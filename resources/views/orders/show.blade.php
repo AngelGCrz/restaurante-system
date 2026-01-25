@@ -16,10 +16,10 @@
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b border-zinc-200 dark:border-zinc-700">
-                                <th class="pb-3 font-semibold">Producto</th>
-                                <th class="pb-3 font-semibold">Cant.</th>
-                                <th class="pb-3 font-semibold text-right">Precio</th>
-                                <th class="pb-3 font-semibold text-right">SubT</th>
+                                <th class="pb-3 font-semibold">Producto </th>
+                                <th class="pb-3 font-semibold"> Cant </th>
+                                <th class="pb-3 font-semibold text-right"> P.Unit</th>
+                                <th class="pb-3 font-semibold text-right"> SubT</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
