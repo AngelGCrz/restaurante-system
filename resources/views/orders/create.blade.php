@@ -16,12 +16,21 @@
                 initialServiceType: @json(old('type', 'mesa')),
                 initialCustomerName: @json(old('customer_name', '')),
                 initialComment: @json(old('comment', '')),
-                
             })'
             x-init="init()"
             x-on:submit="clearDraft()"
         >
             @csrf
+            <!-- Barra superior fija en móviles: muestra total y cantidad de ítems en tiempo real -->
+            <div x-show="selectedList.length" x-cloak class="md:hidden sticky top-0 z-40 w-full bg-white dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
+                <div class="flex items-center justify-between gap-3 px-4 py-2">
+                    <div class="flex items-baseline gap-3">
+                        <div class="text-xs text-zinc-500 dark:text-zinc-300">Total a pagar</div>
+                        <div class="text-lg font-semibold" x-text="currency(previewTotal)"></div>
+                    </div>
+                    <div class="text-sm text-zinc-500 dark:text-zinc-300" x-text="itemCount + ' ítems'"></div>
+                </div>
+            </div>
             <div class="space-y-6 lg:col-span-2">
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
                     <div class="mb-4 flex flex-wrap items-center gap-2">
@@ -44,7 +53,7 @@
             >
 
         
-                                <div class="absolute right-2 top-2" x-show="selectedMap[product.id]">
+                                <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
                                     <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
                                 </div>
                                 <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
@@ -62,22 +71,19 @@
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
                     <div class="mb-2 flex items-center justify-between">
                         <h2 class="text-lg font-semibold">Productos seleccionados</h2>
-                        <button type="button" class="text-sm text-rose-600 hover:underline" @click="clearProducts" x-show="selectedList.length">Vaciar</button>
+                        <button type="button" class="text-sm text-rose-600 hover:underline" @click="clearProducts" x-show="selectedList.length" x-cloak>Vaciar</button>
                     </div>
-                    <div class="space-y-3" x-show="selectedList.length">
+                    <div class="space-y-3" x-show="selectedList.length" x-cloak>
                         <template x-for="item in selectedList" :key="item.id">
-                           
                             <div class="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700">
                                 <div>
                                     <p class="font-medium" x-text="item.name"></p>
                                     <p class="text-xs text-zinc-500" x-text="currency(item.price)"></p>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    
                                     <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="decrement(item.id)">-</button>
                                     <span class="min-w-[24px] text-center text-sm font-semibold" x-text="item.quantity"></span>
                                     <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="increment(item.id)">+</button>
-                                    <button type="button" class="text-xs text-blue-600 underline" @click="openCommentModal(item)">Comentario</button>
                                 </div>
                             </div>
                         </template>
@@ -85,13 +91,11 @@
                     <p class="text-sm text-zinc-500" x-show="!selectedList.length">Toca un producto para agregarlo al pedido.</p>
 
                     <template x-for="(item, index) in selectedList" :key="`hidden-${item.id}`">
-    <div>
-        <input type="hidden" :name="`items[${index}][product_id]`" :value="item.id">
-        <input type="hidden" :name="`items[${index}][quantity]`" :value="item.quantity">
-        <input type="hidden" :name="`items[${index}][comment]`" :value="item.comment || ''">
-    </div>
-</template>
-
+                        <div>
+                            <input type="hidden" :name="`items[${index}][product_id]`" :value="item.id">
+                            <input type="hidden" :name="`items[${index}][quantity]`" :value="item.quantity">
+                        </div>
+                    </template>
                 </div>
 
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
@@ -115,7 +119,7 @@
                             </select>
                         </label>
 
-                        <div x-show="serviceType === 'mesa'" class="space-y-2">
+                        <div x-show="serviceType === 'mesa'" x-cloak class="space-y-2">
                             <div class="flex items-start justify-between gap-2">
                                 <div>
                                     <p class="text-sm text-zinc-600">Selecciona una o varias mesas.</p>
@@ -147,37 +151,10 @@
                     </div>
                 </div>
             </div>
-
-            <div x-show="showCommentModal" x-cloak
-     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-    <div class="bg-white dark:bg-zinc-800 rounded-xl p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold mb-2">
-    Comentario para: <span class="font-bold" x-text="currentCommentItem?.name"></span>
-</h3>
-
-        <textarea rows="4"
-                  class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                  x-model="currentCommentText"></textarea>
-
-        <div class="mt-4 flex justify-end gap-2">
-            <button type="button"
-                    class="px-4 py-2 rounded-lg border"
-                    @click="closeCommentModal">Cancelar</button>
-            <button type="button"
-                    class="px-4 py-2 rounded-lg bg-zinc-900 text-white"
-                    @click="saveItemComment">Guardar</button>
-        </div>
-    </div>
-</div>
-
-    </div>
-</div>
-
         </form>
     </div>
 
     <script>
-
         // Simple toast helper for non-blocking notifications
         window.showToast = function(message, variant = 'error') {
             const containerId = 'app-toasts-container';
@@ -230,10 +207,6 @@
                 serviceType: initialServiceType || 'mesa',
                 customerName: initialCustomerName || '',
                 comment: initialComment || '',
-                showCommentModal: false,
-                currentCommentItem: null,
-                currentCommentText: '',
-
                 totalTables,
                 tableNumbers: presetTables.length ? presetTables : Array.from({ length: totalTables }, (_, idx) => idx + 1),
                 selectedTables: presetSelection,
@@ -356,6 +329,15 @@
                     this.selectedMap[product.id] = existing;
                     this.saveDraft();
                 },
+                itemSubtotal(item) {
+                    return (Number(item.price) || 0) * (Number(item.quantity) || 0);
+                },
+                get previewTotal() {
+                    return this.selectedList.reduce((sum, item) => sum + this.itemSubtotal(item), 0);
+                },
+                get itemCount() {
+                    return this.selectedList.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+                },
                 increment(productId) {
                     if (!this.selectedMap[productId]) return;
                     const item = this.selectedMap[productId];
@@ -377,33 +359,7 @@
                     }
                     this.saveDraft();
                 },
-//MODAL
-                openCommentModal(item) {
-                this.currentCommentItem = item;
-                this.currentCommentText = item.comment || '';
-                this.showCommentModal = true;
-            },
-            closeCommentModal() {
-                this.showCommentModal = false;
-                this.currentCommentItem = null;
-                this.currentCommentText = '';
-            },
-            saveItemComment() {
-                if (this.currentCommentItem) {
-                    const id = this.currentCommentItem.id;
-                
-                    // Actualizar directamente en selectedMap
-                    this.selectedMap[id] = {
-                        ...this.selectedMap[id],
-                        comment: this.currentCommentText
-                    };
-                
-                    this.saveDraft();
-                }
-                this.closeCommentModal();
-            },
-            //END MODAL
-        get selectedList() {
+                get selectedList() {
                     return Object.values(this.selectedMap);
                 },
                 get filteredProducts() {

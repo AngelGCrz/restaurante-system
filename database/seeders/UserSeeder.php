@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
@@ -23,7 +24,7 @@ class UserSeeder extends Seeder
             ['email' => 'admin@restaurante.com'],
             [
                 'name' => 'Admin Restaurante',
-                'password' => 'password',
+                'password' => Hash::make('password'),
                 'role_id' => $adminRole->id,
                 'email_verified_at' => $now,
             ],
@@ -33,7 +34,7 @@ class UserSeeder extends Seeder
             ['email' => 'caja@restaurante.com'],
             [
                 'name' => 'Cajero 1',
-                'password' => 'password',
+                'password' => Hash::make('password'),
                 'role_id' => $cajeroRole->id,
                 'email_verified_at' => $now,
             ],
@@ -43,7 +44,7 @@ class UserSeeder extends Seeder
             ['email' => 'cocina@restaurante.com'],
             [
                 'name' => 'Cocina 1',
-                'password' => 'password',
+                'password' => Hash::make('password'),
                 'role_id' => $cocinaRole->id,
                 'email_verified_at' => $now,
             ],
@@ -53,7 +54,7 @@ class UserSeeder extends Seeder
             ['email' => 'mozo@restaurante.com'],
             [
                 'name' => 'Mozo 1',
-                'password' => 'password',
+                'password' => Hash::make('password'),
                 'role_id' => $mozoRole->id,
                 'email_verified_at' => $now,
             ],
