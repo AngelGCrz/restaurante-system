@@ -26,7 +26,7 @@
                 <div class="flex items-center justify-between gap-3 px-4 py-2">
                     <div class="flex items-baseline gap-3">
                         <div class="text-xs text-zinc-500 dark:text-zinc-300">Total a pagar</div>
-                        <div class="text-lg font-semibold" x-text="currency(previewTotal)"></div>
+                        <div class="text-lg font-semibold text-red-600 dark:text-red-400" x-text="currency(previewTotal)"></div>
                     </div>
                     <div class="text-sm text-zinc-500 dark:text-zinc-300" x-text="itemCount + ' ítems'"></div>
                 </div>
@@ -84,7 +84,10 @@
                                     <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="decrement(item.id)">-</button>
                                     <span class="min-w-[24px] text-center text-sm font-semibold" x-text="item.quantity"></span>
                                     <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="increment(item.id)">+</button>
-                                    <button type="button" class="text-xs text-blue-600 underline" @click="openCommentModal(item)">Comentario</button>
+                                    <button type="button" class="text-xs text-blue-600 underline flex items-center gap-1" @click="openCommentModal(item)">
+                                    <i class="bi bi-chat-dots"></i>
+                                </button>
+
                                 </div>
                             </div>
                         </template>
