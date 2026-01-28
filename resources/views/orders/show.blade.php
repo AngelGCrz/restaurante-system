@@ -80,10 +80,38 @@
                     </div>
                     @if($order->status === 'pendiente' && auth()->user()->role->name === 'cajero')
                         <div class="mt-6 space-y-3">
-                            <form action="{{ route('orders.pay', $order) }}" method="POST">
-                                @csrf
-                                <flux:button type="submit" variant="primary" class="w-full">Registrar Pago</flux:button>
-                            </form>
+                            <form action="{{ route('orders.pay', $order) }}" method="POST" class="space-y-4">
+    @csrf
+
+    <!-- Forma de pago -->
+    <div>
+        <label class="block text-sm font-medium mb-1">Forma de pago</label>
+        <select name="payment_method" required
+            class="w-full rounded-lg border-zinc-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-white">
+            <option value="">Seleccione...</option>
+            <option value="efectivo">Efectivo</option>
+            <option value="yape">Yape</option>
+            <option value="tarjeta">Tarjeta</option>
+        </select>
+    </div>
+
+    <!-- Tipo de comprobante -->
+    <div>
+        <label class="block text-sm font-medium mb-1">Comprobante</label>
+        <select name="receipt_type" required
+            class="w-full rounded-lg border-zinc-300 dark:border-zinc-600 dark:bg-zinc-900 dark:text-white">
+            <option value="">Seleccione...</option>
+            <option value="ticket">Ticket</option>
+            <option value="boleta">Boleta</option>
+            <option value="factura">Factura</option>
+        </select>
+    </div>
+
+    <flux:button type="submit" variant="primary" class="w-full">
+        Registrar Pago
+    </flux:button>
+</form>
+
 
                             <form action="{{ route('orders.cancel', $order) }}" method="POST" onsubmit="return confirm('¿Confirmar cancelación del pedido #{{ $order->id }}?');">
                                 @csrf

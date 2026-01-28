@@ -256,20 +256,20 @@ class OrderController extends Controller
     }
 
     public function pay(Request $request, Order $order)
-    {
-        if ($order->status === 'pagado') {
-            return redirect()->route('orders.show', $order)->with('success', 'El pedido ya está pagado.');
-        }
+{
+    $request->validate([
+        'payment_method' => 'required|in:efectivo,yape,tarjeta',
+        'receipt_type' => 'required|in:ticket,boleta,factura',
+    ]);
 
-        $order->update(['status' => 'pagado']);
+    $order->payment_method = $request->payment_method;
+    $order->receipt_type = $request->receipt_type;
+    $order->status = 'pagado';
+    $order->save();
 
-        return redirect()
-            ->route('orders.show', $order)
-            ->with([
-                'success' => 'Pago registrado correctamente.',
-                'paid' => true,
-            ]);
-    }
+    return redirect()->route('orders.show', $order)->with('paid', true);
+}
+
 
     /**
      * Cancel an order (mark as 'cancelado'). Only allowed when pending.
