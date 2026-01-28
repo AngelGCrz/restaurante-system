@@ -9,12 +9,20 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    public function index()
-    {
-        $products = Product::with('category')->orderBy('name')->get();
-        $stockEnabled = (bool) \App\Models\Setting::getValue('stock_enabled', false);
-        return view('admin.products.index', compact('products', 'stockEnabled'));
-    }
+
+public function index(Request $request)
+{
+    $products = Product::with('category')
+        ->search($request->search)
+        ->categoryFilter($request->category)
+        ->orderBy('name')
+        ->get();
+
+    $categories = Category::orderBy('name')->get();
+    $stockEnabled = (bool) \App\Models\Setting::getValue('stock_enabled', false);
+
+    return view('admin.products.index', compact('products', 'categories', 'stockEnabled'));
+}   
 
     public function create()
     {

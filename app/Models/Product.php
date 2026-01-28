@@ -41,4 +41,20 @@ class Product extends Model
     {
         return $this->belongsTo(Category::class);
     }
+
+    // 🔍 Scope: búsqueda por nombre
+    public function scopeSearch($query, $term)
+    {
+        if ($term) {
+            $query->where('name', 'like', '%' . $term . '%');
+        }
+    }
+
+    // 🗂 Scope: filtro por categoría
+    public function scopeCategoryFilter($query, $categoryId)
+    {
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+    }
 }

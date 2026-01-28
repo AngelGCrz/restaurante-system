@@ -10,6 +10,31 @@
         @endif
 
         <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
+
+            <form method="GET" class="flex flex-wrap gap-2 mb-4">
+    <input type="text"
+           name="search"
+           value="{{ request('search') }}"
+           placeholder="Buscar producto..."
+           class="border rounded px-3 py-2 w-full sm:w-1/3">
+
+    <select name="category" class="border rounded px-3 py-2 w-full sm:w-1/4">
+        <option value="">Todas las categorías</option>
+        @foreach ($categories as $category)
+            <option value="{{ $category->id }}"
+                {{ request('category') == $category->id ? 'selected' : '' }}>
+                {{ $category->name }}
+            </option>
+        @endforeach
+    </select>
+
+    <button type="submit"
+            class="bg-blue-600 text-white px-4 py-2 rounded">
+        Filtrar
+    </button>
+</form>
+
+
             <table class="w-full text-left">
                 <thead>
                     <tr class="border-b border-zinc-200 dark:border-zinc-700">
