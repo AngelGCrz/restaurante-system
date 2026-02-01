@@ -57,7 +57,16 @@
                     <div class="space-y-3">
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Estado:</span>
-                            <span class="font-medium capitalize {{ $order->status === 'pagado' ? 'text-green-600' : ($order->status === 'cancelado' ? 'text-red-600' : 'text-yellow-600') }}">{{ $order->status }}</span>
+                            @php
+                                $statusClass = match($order->status) {
+                                    'pagado' => 'text-green-600',
+                                    'listo' => 'text-indigo-600',
+                                    'en_preparacion' => 'text-amber-600',
+                                    'cancelado' => 'text-red-600',
+                                    default => 'text-yellow-600',
+                                };
+                            @endphp
+                            <span class="font-medium capitalize {{ $statusClass }}">{{ ucfirst(str_replace('_', ' ', $order->status)) }}</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Cliente:</span>
@@ -78,7 +87,7 @@
                             <span class="font-medium">{{ $order->user->name }}</span>
                         </div>
                     </div>
-                    @if($order->status === 'pendiente' && auth()->user()->role->name === 'cajero')
+                    @if($order->status === 'listo' && auth()->user()->role->name === 'cajero')
                         <div class="mt-6 space-y-3">
                             <form action="{{ route('orders.pay', $order) }}" method="POST" class="space-y-4">
     @csrf

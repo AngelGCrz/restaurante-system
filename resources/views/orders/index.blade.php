@@ -39,6 +39,9 @@
                             </td>
                             <td class="py-3 flex items-center gap-2">
                                 <flux:button size="sm" variant="subtle" href="{{ route('orders.show', $order) }}">Ver</flux:button>
+                                @if(auth()->check() && auth()->user()->role->name === 'cajero' && $order->status === 'listo')
+                                    <flux:button size="sm" variant="primary" color="green" href="{{ route('orders.show', $order) }}">Cobrar</flux:button>
+                                @endif
                                 @if($order->status === 'pendiente' && auth()->check() && auth()->user()->role->name === 'cajero')
                                     <form action="{{ route('orders.cancel', $order) }}" method="POST" onsubmit="return confirm('¿Confirmar cancelación del pedido #{{ $order->id }}?');">
                                         @csrf
