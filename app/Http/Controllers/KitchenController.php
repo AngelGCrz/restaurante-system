@@ -37,8 +37,21 @@ class KitchenController extends Controller
             return back()->withErrors(['order' => 'El pedido debe estar en preparación para marcarlo como listo.']);
         }
 
-        $order->update(['status' => 'listo']);
+        $now = now();
+        $seconds = $now->diffInSeconds($order->created_at);
 
-        return back()->with('success', 'Pedido marcado como Listo.');
+        $order->update([
+            'status' => 'listo',
+            'prepared_at' => $now,
+            'preparation_seconds' => $seconds,
+        ]);
+
+        return back()->with('success', 'Pedido marcado como Listo. Tiempo: ' . gmdate('H:i:s', $seconds));
+    }
+
+    public function show(Order $order)
+    {
+        $order->load('items.product');
+        return view('kitchen.show', compact('order'));
     }
 }
