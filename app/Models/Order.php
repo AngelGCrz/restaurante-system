@@ -34,4 +34,9 @@ class Order extends Model
 
         return $prefix . ' ' . implode(' + ', $tables);
     }
+    public function orderItems()
+{
+    return $this->hasMany(\App\Models\OrderItem::class);
+}
+
 }
