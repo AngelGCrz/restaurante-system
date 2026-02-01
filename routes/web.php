@@ -33,6 +33,7 @@ Route::middleware(['auth'])->group(function () {
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
             Route::get('ventas', [ReportController::class, 'sales'])->name('sales');
+            Route::get('ventas-detalladas', [ReportController::class, 'salesdetallada'])->name('salesdetallada');
             Route::get('caja', [ReportController::class, 'cash'])->name('cash');
             Route::get('inventario', [ReportController::class, 'inventory'])->name('inventory');
             Route::get('clientes', [ReportController::class, 'customers'])->name('customers');
