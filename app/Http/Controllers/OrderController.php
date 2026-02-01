@@ -17,9 +17,10 @@ class OrderController extends Controller
         
         $query = Order::with(['user'])->orderBy('created_at', 'desc');
 
-        // En caja se prioriza ver pagos; mantenemos pendiente visibles para poder cobrarlos
+        // Para cajero: sólo mostrar pedidos listos para cobrar y ya cobrados/ cancelados (histórico)
         if (auth()->check() && auth()->user()->role->name === 'cajero') {
-            $query->orderByRaw("FIELD(status, 'pendiente', 'pagado', 'cancelado')");
+            $query->whereIn('status', ['listo', 'pagado', 'cancelado'])
+                ->orderByRaw("FIELD(status, 'listo', 'pagado', 'cancelado')");
         }
 
         $orders = $query->get();

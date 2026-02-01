@@ -26,10 +26,16 @@
                             </td>
                             <td class="py-3">${{ number_format($order->total, 2) }}</td>
                             <td class="py-3">
-                                <span class="rounded-full px-2 py-1 text-xs
-                                    {{ $order->status === 'pagado' ? 'bg-green-100 text-green-700' : ($order->status === 'pendiente' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700') }}">
-                                    {{ ucfirst($order->status) }}
-                                </span>
+                                @php
+                                    $statusClass = match($order->status) {
+                                        'pagado' => 'bg-green-100 text-green-700',
+                                        'listo' => 'bg-indigo-100 text-indigo-700',
+                                        'en_preparacion' => 'bg-amber-100 text-amber-700',
+                                        'pendiente' => 'bg-yellow-100 text-yellow-700',
+                                        default => 'bg-red-100 text-red-700',
+                                    };
+                                @endphp
+                                <span class="rounded-full px-2 py-1 text-xs {{ $statusClass }}">{{ ucfirst(str_replace('_', ' ', $order->status)) }}</span>
                             </td>
                             <td class="py-3 flex items-center gap-2">
                                 <flux:button size="sm" variant="subtle" href="{{ route('orders.show', $order) }}">Ver</flux:button>
