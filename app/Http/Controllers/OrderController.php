@@ -71,7 +71,7 @@ class OrderController extends Controller
         $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
         $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
 
-        $busyTables = Order::where('status', 'pendiente')
+        $busyTables = Order::whereNotIn('status', ['pagado', 'cancelado'])
             ->pluck('table_numbers')
             ->flatten()
             ->map(fn ($t) => (int) $t)
@@ -133,7 +133,7 @@ class OrderController extends Controller
         }
 
         if ($validated['type'] === 'mesa') {
-            $busyTables = Order::where('status', 'pendiente')
+            $busyTables = Order::whereNotIn('status', ['pagado', 'cancelado'])
                 ->pluck('table_numbers')
                 ->flatten()
                 ->map(fn ($t) => (int) $t)
