@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    protected $fillable = ['user_id', 'customer_name', 'comment', 'type', 'table_numbers', 'total', 'status'];
+    protected $fillable = ['user_id', 'customer_name', 'comment', 'type', 'table_numbers', 'total', 'status', 'prepared_at', 'preparation_seconds'];
 
     protected $casts = [
         'table_numbers' => 'array',
+        'prepared_at' => 'datetime',
     ];
 
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -33,4 +34,9 @@ class Order extends Model
 
         return $prefix . ' ' . implode(' + ', $tables);
     }
+    public function orderItems()
+{
+    return $this->hasMany(\App\Models\OrderItem::class);
+}
+
 }

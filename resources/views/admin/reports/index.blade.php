@@ -10,6 +10,7 @@
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
             @php($links = [
                 ['ruta' => route('admin.reports.sales'), 'titulo' => 'Ventas', 'desc' => 'Totales, tickets y tendencias'],
+                ['ruta' => route('admin.reports.salesdetallada'), 'titulo' => 'Ventas detalladas', 'desc' => 'Totales, pedidos y productos'],
                 ['ruta' => route('admin.reports.cash'), 'titulo' => 'Caja', 'desc' => 'Aperturas, cierres y arqueos'],
                 ['ruta' => route('admin.reports.inventory'), 'titulo' => 'Inventario', 'desc' => 'Stock y movimientos'],
                 ['ruta' => route('admin.reports.customers'), 'titulo' => 'Clientes', 'desc' => 'Frecuencia y consumo'],
