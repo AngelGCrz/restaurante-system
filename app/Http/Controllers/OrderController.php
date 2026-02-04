@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Services\PrinterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -244,6 +245,15 @@ class OrderController extends Controller
 
                 return $order;
             });
+
+            // Intentar imprimir en cocina automáticamente si el pedido fue creado por un mozo
+            if ($request->user()->role->name === 'mozo') {
+                try {
+                    app(PrinterService::class)->printKitchenOrder($order);
+                } catch (\Throwable $e) {
+                    \Log::error('Automatic kitchen print failed for order ' . $order->id . ': ' . $e->getMessage());
+                }
+            }
 
             // Redireccionar según el rol para evitar 403 si la ruta 'orders.show' solo es para cajeros
             $route = $request->user()->role->name === 'mozo' ? 'mozo.orders.show' : 'orders.show';
