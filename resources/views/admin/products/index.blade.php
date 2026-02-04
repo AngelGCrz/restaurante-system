@@ -2,7 +2,9 @@
     <div class="flex h-full w-full flex-1 flex-col gap-4 p-4">
         <div class="flex items-center justify-between">
             <h1 class="text-2xl font-bold">Gestión de Productos</h1>
-            <flux:button variant="primary" icon="plus" href="{{ route('admin.products.create') }}">Nuevo Producto</flux:button>
+            <flux:button variant="primary" icon="plus" href="{{ route('admin.products.create') }}">
+                Nuevo Producto
+            </flux:button>
         </div>
 
         @if(session('success'))
@@ -11,82 +13,155 @@
 
         <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
 
+            {{-- Filtros --}}
             <form method="GET" class="flex flex-wrap gap-2 mb-4">
-    <input type="text"
-           name="search"
-           value="{{ request('search') }}"
-           placeholder="Buscar producto..."
-           class="border rounded px-3 py-2 w-full sm:w-1/3">
+                <input type="text"
+                       name="search"
+                       value="{{ request('search') }}"
+                       placeholder="Buscar producto..."
+                       class="border rounded px-3 py-2 w-full sm:w-1/3">
 
-    <select name="category" class="border rounded px-3 py-2 w-full sm:w-1/4">
-        <option value="">Todas las categorías</option>
-        @foreach ($categories as $category)
-            <option value="{{ $category->id }}"
-                {{ request('category') == $category->id ? 'selected' : '' }}>
-                {{ $category->name }}
-            </option>
-        @endforeach
-    </select>
+                <select name="category" class="border rounded px-3 py-2 w-full sm:w-1/4">
+                    <option value="">Todas las categorías</option>
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->id }}"
+                            {{ request('category') == $category->id ? 'selected' : '' }}>
+                            {{ $category->name }}
+                        </option>
+                    @endforeach
+                </select>
 
-    <button type="submit"
-            class="bg-blue-600 text-white px-4 py-2 rounded">
-        Filtrar
-    </button>
-</form>
+                <button type="submit"
+                        class="bg-blue-600 text-white px-4 py-2 rounded w-full sm:w-auto">
+                    Filtrar
+                </button>
+            </form>
 
+            {{-- ===== VISTA MÓVIL (vertical y horizontal) ===== --}}
+            <div class="block lg:hidden space-y-4">
+                @foreach($products as $product)
+                    <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800 shadow-sm">
+                        <div class="font-semibold text-lg mb-1">{{ $product->name }}</div>
+                        <div class="text-sm text-zinc-500 mb-2">
+                            {{ $product->category->name ?? 'Sin categoría' }}
+                        </div>
 
-            <table class="w-full text-left">
-                <thead>
-                    <tr class="border-b border-zinc-200 dark:border-zinc-700">
-                        <th class="pb-3 font-semibold">Nombre</th>
-                        <th class="pb-3 font-semibold">Categoría</th>
-                        <th class="pb-3 font-semibold">Precio</th>
-                        <th class="pb-3 font-semibold">Stock</th>
-                        <th class="pb-3 font-semibold">Estado</th>
-                        <th class="pb-3 font-semibold text-right">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                    @foreach($products as $product)
-                        <tr>
-                            <td class="py-3">{{ $product->name }}</td>
-                            <td class="py-3">{{ $product->category->name ?? 'Sin categoría' }}</td>
-                            <td class="py-3">${{ number_format($product->price, 2) }}</td>
-                            <td class="py-3">
-                                @if(($stockEnabled ?? false) && ($product->stock ?? 0) <= 0)
-                                    <span class="text-xs text-rose-600 font-semibold">Agotado</span>
-                                @else
-                                    {{ $product->stock ?? 0 }}
-                                @endif
-                            </td>
-                            <td class="py-3">
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                                <span class="font-medium">Precio:</span>
+                                <span>${{ number_format($product->price, 2) }}</span>
+                            </div>
+
+                            <div>
+                                <span class="font-medium">Stock:</span>
+                                <span>
+                                    @if(($stockEnabled ?? false) && ($product->stock ?? 0) <= 0)
+                                        <span class="text-rose-600 font-semibold">Agotado</span>
+                                    @else
+                                        {{ $product->stock ?? 0 }}
+                                    @endif
+                                </span>
+                            </div>
+
+                            <div class="col-span-2">
+                                <span class="font-medium">Estado:</span>
                                 <span class="rounded-full px-2 py-1 text-xs {{ $product->is_available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
                                     {{ $product->is_available ? 'Disponible' : 'No disponible' }}
                                 </span>
-                            </td>
-                            <td class="py-3 text-right space-x-2">
-                                <form action="{{ route('admin.products.update', $product) }}" method="POST" class="inline">
-                                    @csrf
-                                    @method('PUT')
-                                    <input type="hidden" name="quick_toggle" value="1">
-                                    <input type="hidden" name="is_available" value="{{ $product->is_available ? 0 : 1 }}">
-                                    <flux:button type="submit" size="sm" variant="ghost" icon="power">
-                                        {{ $product->is_available ? 'Desactivar' : 'Activar' }}
-                                    </flux:button>
-                                </form>
+                            </div>
+                        </div>
 
-                                <flux:button size="sm" variant="subtle" icon="pencil" href="{{ route('admin.products.edit', $product) }}">Editar</flux:button>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <form action="{{ route('admin.products.update', $product) }}" method="POST">
+                                @csrf
+                                @method('PUT')
+                                <input type="hidden" name="quick_toggle" value="1">
+                                <input type="hidden" name="is_available" value="{{ $product->is_available ? 0 : 1 }}">
+                                <flux:button type="submit" size="sm" variant="ghost" icon="power">
+                                    {{ $product->is_available ? 'Desactivar' : 'Activar' }}
+                                </flux:button>
+                            </form>
 
-                                <form action="{{ route('admin.products.destroy', $product) }}" method="POST" class="inline" onsubmit="return confirm('¿Eliminar producto?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <flux:button type="submit" size="sm" variant="ghost" icon="trash">Eliminar</flux:button>
-                                </form>
-                            </td>
+                            <flux:button size="sm" variant="subtle" icon="pencil"
+                                href="{{ route('admin.products.edit', $product) }}">
+                                Editar
+                            </flux:button>
+
+                            <form action="{{ route('admin.products.destroy', $product) }}" method="POST"
+                                  onsubmit="return confirm('¿Eliminar producto?');">
+                                @csrf
+                                @method('DELETE')
+                                <flux:button type="submit" size="sm" variant="ghost" icon="trash">
+                                    Eliminar
+                                </flux:button>
+                            </form>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- ===== VISTA ESCRITORIO ===== --}}
+            <div class="hidden lg:block overflow-x-auto">
+                <table class="min-w-full text-left text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-200 dark:border-zinc-700">
+                            <th class="pb-3 font-semibold">Nombre</th>
+                            <th class="pb-3 font-semibold">Categoría</th>
+                            <th class="pb-3 font-semibold">Precio</th>
+                            <th class="pb-3 font-semibold">Stock</th>
+                            <th class="pb-3 font-semibold">Estado</th>
+                            <th class="pb-3 font-semibold text-right">Acciones</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        @foreach($products as $product)
+                            <tr>
+                                <td class="py-3">{{ $product->name }}</td>
+                                <td class="py-3">{{ $product->category->name ?? 'Sin categoría' }}</td>
+                                <td class="py-3">${{ number_format($product->price, 2) }}</td>
+                                <td class="py-3">
+                                    @if(($stockEnabled ?? false) && ($product->stock ?? 0) <= 0)
+                                        <span class="text-xs text-rose-600 font-semibold">Agotado</span>
+                                    @else
+                                        {{ $product->stock ?? 0 }}
+                                    @endif
+                                </td>
+                                <td class="py-3">
+                                    <span class="rounded-full px-2 py-1 text-xs {{ $product->is_available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
+                                        {{ $product->is_available ? 'Disponible' : 'No disponible' }}
+                                    </span>
+                                </td>
+                                <td class="py-3 text-right space-x-2">
+                                    <form action="{{ route('admin.products.update', $product) }}" method="POST" class="inline">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="quick_toggle" value="1">
+                                        <input type="hidden" name="is_available" value="{{ $product->is_available ? 0 : 1 }}">
+                                        <flux:button type="submit" size="sm" variant="ghost" icon="power">
+                                            {{ $product->is_available ? 'Desactivar' : 'Activar' }}
+                                        </flux:button>
+                                    </form>
+
+                                    <flux:button size="sm" variant="subtle" icon="pencil"
+                                        href="{{ route('admin.products.edit', $product) }}">
+                                        Editar
+                                    </flux:button>
+
+                                    <form action="{{ route('admin.products.destroy', $product) }}" method="POST"
+                                          class="inline" onsubmit="return confirm('¿Eliminar producto?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <flux:button type="submit" size="sm" variant="ghost" icon="trash">
+                                            Eliminar
+                                        </flux:button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
         </div>
     </div>
 </x-layouts.app>
