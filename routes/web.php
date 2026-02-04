@@ -56,6 +56,9 @@ Route::middleware(['auth'])->group(function () {
     // Rutas para Cocina
     Route::middleware(['role:cocina'])->group(function () {
         Route::get('kitchen', [KitchenController::class, 'index'])->name('kitchen.index');
+        Route::post('kitchen/{order}/prepare', [KitchenController::class, 'prepare'])->name('kitchen.prepare');
+        Route::post('kitchen/{order}/ready', [KitchenController::class, 'ready'])->name('kitchen.ready');
+        Route::get('kitchen/{order}', [KitchenController::class, 'show'])->name('kitchen.show');
     });
 
     // Rutas para Mozo
