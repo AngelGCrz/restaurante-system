@@ -91,179 +91,174 @@ class OrderController extends Controller
     }
 
     public function store(Request $request)
-    {
-        
-        // Filtrar items con cantidad > 0 para evitar validaciones con ceros
-        $filteredItems = collect($request->input('items', []))
-            ->filter(fn ($item) => isset($item['quantity']) && (int) $item['quantity'] > 0)
-            ->values()
-            ->all();
+{
+    // Filtrar items con cantidad > 0 para evitar validaciones con ceros
+    $filteredItems = collect($request->input('items', []))
+        ->filter(fn ($item) => isset($item['quantity']) && (int) $item['quantity'] > 0)
+        ->values()
+        ->all();
 
-        $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
+    $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
 
-        $selectedTables = collect($request->input('tables', []))
-            ->map(fn ($table) => (int) $table)
-            ->filter(fn ($table) => $table > 0 && ($tableCount === 0 || $table <= $tableCount))
+    $selectedTables = collect($request->input('tables', []))
+        ->map(fn ($table) => (int) $table)
+        ->filter(fn ($table) => $table > 0 && ($tableCount === 0 || $table <= $tableCount))
+        ->unique()
+        ->values()
+        ->all();
+
+    $isMesa = $request->input('type') === 'mesa';
+
+    $validated = $request->merge([
+        'items' => $filteredItems,
+        'tables' => $isMesa ? $selectedTables : [],
+    ])->validate([
+        'customer_name' => 'nullable|string',
+        'comment' => 'nullable|string',
+        'type' => 'required|in:mesa,llevar',
+        'tables' => $isMesa ? 'required|array|min:1' : 'nullable|array',
+        'tables.*' => 'integer|min:1|max:' . max($tableCount, 1),
+        'items' => 'required|array|min:1',
+        'items.*.product_id' => 'required|exists:products,id',
+        'items.*.quantity' => 'required|integer|min:1',
+        'items.*.comment' => 'nullable|string',
+    ]);
+
+    if ($validated['type'] === 'mesa' && $tableCount === 0) {
+        return back()->withErrors([
+            'tables' => 'Configura la cantidad total de mesas antes de registrar pedidos en mesa.',
+        ])->withInput();
+    }
+
+    if ($validated['type'] === 'mesa') {
+        $busyTables = Order::where('status', 'pendiente')
+            ->pluck('table_numbers')
+            ->flatten()
+            ->map(fn ($t) => (int) $t)
+            ->filter(fn ($t) => $t > 0)
             ->unique()
             ->values()
             ->all();
 
-        $isMesa = $request->input('type') === 'mesa';
-
-        $validated = $request->merge([
-            'items' => $filteredItems,
-            'tables' => $isMesa ? $selectedTables : [],
-        ])->validate([
-            'customer_name' => 'nullable|string',
-            'comment' => 'nullable|string',
-            'type' => 'required|in:mesa,llevar',
-            'tables' => $isMesa ? 'required|array|min:1' : 'nullable|array',
-            'tables.*' => 'integer|min:1|max:' . max($tableCount, 1),
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.comment' => 'nullable|string',
-
-        ]);
-
-        if ($validated['type'] === 'mesa' && $tableCount === 0) {
+        $conflicts = array_values(array_intersect($busyTables, $validated['tables']));
+        if (! empty($conflicts)) {
             return back()->withErrors([
-                'tables' => 'Configura la cantidad total de mesas antes de registrar pedidos en mesa.',
+                'tables' => 'Las mesas ' . implode(' + ', $conflicts) . ' ya están ocupadas en otro pedido.',
             ])->withInput();
         }
+    }
 
-        if ($validated['type'] === 'mesa') {
-            $busyTables = Order::where('status', 'pendiente')
-                ->pluck('table_numbers')
-                ->flatten()
-                ->map(fn ($t) => (int) $t)
-                ->filter(fn ($t) => $t > 0)
-                ->unique()
-                ->values()
-                ->all();
+    // Stock settings
+    $stockEnabled = (bool) Setting::getValue('stock_enabled', false);
+    $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
 
-            $conflicts = array_values(array_intersect($busyTables, $validated['tables']));
-            if (! empty($conflicts)) {
-                return back()->withErrors([
-                    'tables' => 'Las mesas ' . implode(' + ', $conflicts) . ' ya están ocupadas en otro pedido.',
-                ])->withInput();
+    // Validación previa de stock
+    if ($stockEnabled) {
+        $insufficient = [];
+        foreach ($validated['items'] as $item) {
+            $product = Product::find($item['product_id']);
+            if (! $product) {
+                continue;
+            }
+
+            if ($product->stock <= 0) {
+                $insufficient[] = $product->name . ' (agotado)';
+                continue;
+            }
+
+            if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
+                $insufficient[] = $product->name . ' (disponible: ' . $product->stock . ')';
             }
         }
 
-        // Stock settings
-        $stockEnabled = (bool) Setting::getValue('stock_enabled', false);
-        $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
+        if (! empty($insufficient)) {
+            return back()->withErrors([
+                'items' => 'Stock insuficiente para: ' . implode(', ', $insufficient),
+            ])->withInput();
+        }
+    }
 
-        // If stock tracking is enabled, validate all items have enough stock
-        if ($stockEnabled) {
-            $insufficient = [];
+    try {
+        $order = DB::transaction(function () use ($request, $validated, $stockEnabled, $stockAllowNegative) {
+
+            // Crear el pedido primero
+            $order = Order::create([
+                'user_id' => $request->user()->id,
+                'customer_name' => $validated['customer_name'],
+                'comment' => $validated['comment'] ?? null,
+                'type' => $validated['type'],
+                'table_numbers' => $validated['type'] === 'mesa' ? $validated['tables'] : [],
+                'total' => 0,
+            ]);
+
+            $total = 0;
+
             foreach ($validated['items'] as $item) {
-                $product = Product::find($item['product_id']);
+                $product = Product::lockForUpdate()->find($item['product_id']);
                 if (! $product) {
                     continue;
                 }
 
-                // If stock tracking is enabled and product has zero or less, it's sold out and cannot be ordered
-                if ($product->stock <= 0) {
-                    $insufficient[] = $product->name . ' (agotado)';
-                    continue;
-                }
-
-                if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
-                    $insufficient[] = $product->name . ' (disponible: ' . $product->stock . ')';
-                }
-            }
-
-            if (! empty($insufficient)) {
-                return back()->withErrors([
-                    'items' => 'Stock insuficiente para: ' . implode(', ', $insufficient),
-                ])->withInput();
-            }
-        }
-
-        try {
-            $order = DB::transaction(function () use ($request, $validated, $stockEnabled, $stockAllowNegative) {
-                // Re-check stock with row locking to avoid race conditions
-                $insufficient = [];
-                foreach ($validated['items'] as $item) {
-                    $product = Product::lockForUpdate()->find($item['product_id']);
-                    if (! $product) {
-                        continue;
+                // Validación final de stock
+                if ($stockEnabled) {
+                    if ($product->stock <= 0) {
+                        throw new \RuntimeException($product->name . ' (agotado)');
                     }
 
-                    if ($stockEnabled) {
-                        if ($product->stock <= 0) {
-                            $insufficient[] = $product->name . ' (agotado)';
-                            continue;
-                        }
-
-                        if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
-                            $insufficient[] = $product->name . ' (disponible: ' . $product->stock . ')';
-                        }
+                    if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
+                        throw new \RuntimeException($product->name . ' (disponible: ' . $product->stock . ')');
                     }
                 }
 
-                if (! empty($insufficient)) {
-                    throw new \RuntimeException(implode(', ', $insufficient));
+                $price = $product->price;
+
+                // 👉 Recargo: si es para llevar y precio > 9
+                if ($validated['type'] === 'llevar' && $price > 9) {
+                    $price += 1;
                 }
 
-                $order = Order::create([
-                    'user_id' => $request->user()->id,
-                    'customer_name' => $validated['customer_name'],
-                    'comment' => $validated['comment'] ?? null,
-                    'type' => $validated['type'],
-                    'table_numbers' => $validated['type'] === 'mesa' ? $validated['tables'] : [],
-                    'total' => 0,
-                ]);
+                $subtotal = $price * $item['quantity'];
 
-                $total = 0;
-                foreach ($validated['items'] as $item) {
-                    $product = Product::lockForUpdate()->find($item['product_id']);
-                    if (! $product) {
-                        continue;
-                    }
-
-                    $subtotal = $product->price * $item['quantity'];
-
-                    $order->items()->create([
+                $order->items()->create([
                     'product_id' => $product->id,
                     'quantity' => $item['quantity'],
-                    'price' => $product->price,
+                    'price' => $price,
                     'comment' => $item['comment'] ?? null,
                 ]);
 
-
-                    // Decrement stock if enabled
-                    if ($stockEnabled) {
-                        $product->decreaseStock((int) $item['quantity'], $stockAllowNegative);
-                    }
-
-                    $total += $subtotal;
+                // Decrementar stock si está habilitado
+                if ($stockEnabled) {
+                    $product->decreaseStock((int) $item['quantity'], $stockAllowNegative);
                 }
 
-                $order->update(['total' => $total]);
-
-                return $order;
-            });
-
-            // Intentar imprimir en cocina automáticamente si el pedido fue creado por un mozo
-            if ($request->user()->role->name === 'mozo') {
-                try {
-                    app(PrinterService::class)->printKitchenOrder($order);
-                } catch (\Throwable $e) {
-                    \Log::error('Automatic kitchen print failed for order ' . $order->id . ': ' . $e->getMessage());
-                }
+                $total += $subtotal;
             }
 
-            // Redireccionar según el rol para evitar 403 si la ruta 'orders.show' solo es para cajeros
-            $route = $request->user()->role->name === 'mozo' ? 'mozo.orders.show' : 'orders.show';
-            return redirect()->route($route, $order)->with('success', 'Pedido registrado.');
-        } catch (\RuntimeException $e) {
-            return back()->withErrors([
-                'items' => 'Stock insuficiente para: ' . $e->getMessage(),
-            ])->withInput();
+            $order->update(['total' => $total]);
+
+            return $order;
+        });
+
+        // Intentar imprimir en cocina automáticamente si el pedido fue creado por un mozo
+        if ($request->user()->role->name === 'mozo') {
+            try {
+                app(PrinterService::class)->printKitchenOrder($order);
+            } catch (\Throwable $e) {
+                \Log::error('Automatic kitchen print failed for order ' . $order->id . ': ' . $e->getMessage());
+            }
         }
+
+        // Redireccionar según el rol
+        $route = $request->user()->role->name === 'mozo' ? 'mozo.orders.show' : 'orders.show';
+        return redirect()->route($route, $order)->with('success', 'Pedido registrado.');
+
+    } catch (\RuntimeException $e) {
+        return back()->withErrors([
+            'items' => 'Stock insuficiente para: ' . $e->getMessage(),
+        ])->withInput();
     }
+}
+
 
     public function pay(Request $request, Order $order)
 {
