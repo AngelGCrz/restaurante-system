@@ -156,7 +156,10 @@ class PrinterService
         // Tables if applicable
         $tables = is_array($order->table_numbers) ? $order->table_numbers : (array) $order->table_numbers;
         if (! empty($tables)) {
-            $output .= "Mesa(s): " . implode(' + ', $tables) . $nl;
+            $output .= "\x1B\x45\x01";      // BOLD ON
+            $output .= "Mesa(s): ";
+            $output .= "\x1B\x45\x00";      // BOLD OFF
+            $output .= implode(' + ', $tables) . $nl;
         }
 
         // Separator

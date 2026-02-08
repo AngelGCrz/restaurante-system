@@ -4,15 +4,15 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach($orders as $order)
-                <div class="order-card rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                <div class="order-card rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800" data-order-id="{{ $order->id }}">
                     <div class="flex justify-between items-center mb-3">
                         <span class="font-bold">Orden #{{ $order->id }}</span>
                         <div class="flex items-center gap-2">
                             <span class="text-sm text-zinc-500">{{ $order->created_at->format('H:i') }}</span>
                             <button type="button"
-                                onclick="printOrder(this)"
+                                onclick="printKitchenOrder(this)"
                                 class="rounded-md bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700">
-                                🖨️ Imprimir
+                                🖨️ 
                             </button>
                         </div>
                     </div>
@@ -49,117 +49,45 @@
         </div>
     </div>
 
-    <style>
-@media print {
-
-    @page {
-        size: 80mm auto;
-        margin: 0;
-    }
-
-    body {
-        margin: 0;
-        font-family: monospace;
-    }
-
-    .ticket {
-        width: 76mm;/*80*/
-        padding: 2mm 2mm;/*5mm*/
-        page-break-after: always; /* FUERZA EL CORTE */
-    }
-
-    h1, button {
-        display: none !important;
-    }
-
-    .order-card {
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-    }
-
-    .order-card span,
-    .order-card p {
-        font-size: 11px;
-        line-height: 1.2;
-        white-space: normal;
-        word-wrap: break-word;
-    }
-
-    .order-card .text-sm {
-        font-size: 10px;
-    }
-    .order-card ul {
-        padding-left: 0;
-        margin-left: 0;
-    }
-
-    .order-card li {
-        list-style: none;
-    }
-}
-</style>
-
-
-    {{-- <style>
-@media print {
-
-    @page {
-        size: 80mm auto; /* usa 58mm auto si tu impresora es pequeña */
-        margin: 0;
-    }
-    .ticket {
-        page-break-after: always;
-    }
-
-    body {
-        margin: 0;
-        font-family: monospace;
-    }
-
-    .ticket {
-        width: 80mm;
-        padding: 15mm;
-    }
-
-    h1, button {
-        display: none;
-    }
-
-    .order-card {
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-    }
-
-    .order-card span,
-    .order-card p {
-        font-size: 12px;
-    }
-
-    .order-card .text-sm {
-        font-size: 11px;
-    }
-}
-</style> --}}
-
 <script>
-function printOrder(button) {
-    const orderCard = button.closest('.order-card');
-    const printContents = orderCard.innerHTML;
-    const originalContents = document.body.innerHTML;
+    async function printKitchenOrder(button) {
+        const orderCard = button.closest('.order-card');
+        const orderId = orderCard?.dataset?.orderId;
+        if (!orderId) return alert('Pedido no identificado');
 
-    document.body.innerHTML = `
-        <div class="ticket">
-            ${printContents}
-        </div>
-    `;
+        button.disabled = true;
+        const originalText = button.innerText;
+        button.innerText = 'Print';
 
-    window.print();
+        try {
+            const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+            const tokenInput = document.querySelector('input[name="_token"]');
+            const csrfToken = tokenMeta ? tokenMeta.getAttribute('content') : (tokenInput ? tokenInput.value : (window?.Laravel?.csrfToken || ''));
 
-    document.body.innerHTML = originalContents;
-    location.reload();
-}
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
+
+            const resp = await fetch("{{ url('') }}" + `/kitchen/${orderId}/print`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({})
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => null);
+                throw new Error(err?.message || 'Error al imprimir');
+            }
+
+            // Mostrar confirmación breve
+            button.innerText = 'Enviado';
+            setTimeout(() => location.reload(), 700);
+        } catch (e) {
+            console.error(e);
+            alert('No se pudo imprimir: ' + (e.message || e));
+            button.disabled = false;
+            button.innerText = originalText;
+        }
+    }
 </script>
 
     {{-- <script>
