@@ -67,8 +67,9 @@
             const headers = { 'Content-Type': 'application/json' };
             if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
 
-            const resp = await fetch("{{ url('') }}" + `/kitchen/${orderId}/print`, {
+            const resp = await fetch(`/kitchen/${orderId}/print`, {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers,
                 body: JSON.stringify({})
             });

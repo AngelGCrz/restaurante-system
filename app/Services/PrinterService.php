@@ -42,6 +42,18 @@ class PrinterService
         return $this->writeToFile($order->id, $content);
     }
 
+    /**
+     * Return the raw ESC/POS payload for the kitchen order as binary string.
+     * Used by remote flows (agent push / WebUSB) which need the raw bytes.
+     *
+     * @param Order $order
+     * @return string
+     */
+    public function getRawKitchenESCPOS(Order $order): string
+    {
+        return $this->generateESCPOSRaw($order);
+    }
+
     protected function printUSBESCPOS(Order $order): bool
     {
         try {
