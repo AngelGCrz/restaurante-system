@@ -1,7 +1,0 @@
-
-http://localhost:3000/impresoras
-
-POSPrinter POS-80C
-
-
-

@@ -18,7 +18,8 @@ const PORT = 3000;
 async function imprimirTicket(pedido) {
   const printer = new ThermalPrinter({
     type: PrinterTypes.EPSON,
-    interface: "\\\\ANGEL-ASUS\\POSPrinter POS-80C",
+    interface: '\\\\LAPTOP-CTG52S1V\\POSPrinter POS-80C',
+    // interface: '\\\\ANGEL-ASUS\\POSPrinter POS-80C',
     width: 48,
     encoding: "CP437",
     removeSpecialCharacters: true,
