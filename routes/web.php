@@ -42,6 +42,14 @@ Route::middleware(['auth'])->group(function () {
             Route::get('ganancias', [ReportController::class, 'profit'])->name('profit');
         });
     });
+    Route::get('/test-print-api', function () {
+    return response()->json(['ok' => true]);
+});
+Route::get('/ping', function () {
+    return 'pong';
+});
+
+
 
     // Rutas para Cajero
     Route::middleware(['role:cajero'])->group(function () {

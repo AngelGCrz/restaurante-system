@@ -55,11 +55,79 @@
         const orderId = orderCard?.dataset?.orderId;
         if (!orderId) return alert('Pedido no identificado');
 
-        button.disabled = true;
-        const originalText = button.innerText;
-        button.innerText = 'Print';
+        const responseOrder = await getOrder(orderId);
+        console.log(responseOrder);
+        let order = responseOrder.order;
+        let orderitems = order.items.map(i => ({
+            item_quantity: i.quantity,
+            item_product_name: i.product.name,
+            item_product_comment: i.comment
+        }));
 
-        try {
+        let pedidobody = {
+            order_id: order.id,
+            order_created_at: order.created_at,
+            order_customer_name: order.customer_name,
+            order_table_label: order.table_label,
+            order_comment: order.comment,
+            items: orderitems            
+        };
+        console.log(pedidobody);
+        const socket = new WebSocket("ws://localhost:3000");
+
+        socket.onopen = () => {
+            socket.send(JSON.stringify({
+                action: "print-ticket",
+                pedido: pedidobody                
+            }));
+        };
+
+        socket.onmessage = e => {
+        console.log("Respuesta:", JSON.parse(e.data));
+        };
+        
+        
+    //     const orderCard = button.closest('.order-card');
+    //     const orderId = orderCard?.dataset?.orderId;
+    //     if (!orderId) return alert('Pedido no identificado');
+
+    //     button.disabled = true;
+    //     const originalText = button.innerText;
+    //     button.innerText = 'Print';
+
+    //     try {
+    //         const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+    //         const tokenInput = document.querySelector('input[name="_token"]');
+    //         const csrfToken = tokenMeta ? tokenMeta.getAttribute('content') : (tokenInput ? tokenInput.value : (window?.Laravel?.csrfToken || ''));
+
+    //         const headers = { 'Content-Type': 'application/json' };
+    //         if (csrfToken) headers['X-CSRF-TOKEN'] = csrfToken;
+
+    //         const resp = await fetch(`/kitchen/${orderId}/print`, {
+    //             method: 'POST',
+    //             credentials: 'same-origin',
+    //             headers,
+    //             body: JSON.stringify({})
+    //         });
+
+    //         if (!resp.ok) {
+    //             const err = await resp.json().catch(() => null);
+    //             throw new Error(err?.message || 'Error al imprimir');
+    //         }
+
+    //         // Mostrar confirmación breve
+    //         button.innerText = 'Enviado';
+    //         setTimeout(() => location.reload(), 700);
+    //     } catch (e) {
+    //         console.error(e);
+    //         alert('No se pudo imprimir: ' + (e.message || e));
+    //         button.disabled = false;
+    //         button.innerText = originalText;
+    //     }
+    }
+
+    async function getOrder(orderId) {
+  try {
             const tokenMeta = document.querySelector('meta[name="csrf-token"]');
             const tokenInput = document.querySelector('input[name="_token"]');
             const csrfToken = tokenMeta ? tokenMeta.getAttribute('content') : (tokenInput ? tokenInput.value : (window?.Laravel?.csrfToken || ''));
@@ -79,16 +147,13 @@
                 throw new Error(err?.message || 'Error al imprimir');
             }
 
-            // Mostrar confirmación breve
-            button.innerText = 'Enviado';
-            setTimeout(() => location.reload(), 700);
+            return await resp.json();
+
         } catch (e) {
             console.error(e);
-            alert('No se pudo imprimir: ' + (e.message || e));
-            button.disabled = false;
-            button.innerText = originalText;
+            
         }
-    }
+}
 </script>
 
     {{-- <script>

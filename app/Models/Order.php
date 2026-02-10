@@ -12,6 +12,7 @@ class Order extends Model
         'table_numbers' => 'array',
         'prepared_at' => 'datetime',
     ];
+    protected $appends = ['table_label'];
 
     public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
