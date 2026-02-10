@@ -1,0 +1,27 @@
+const nombreRestaurante = "RESTAURANTE";
+
+  printer.alignCenter();
+  printer.println(nombreRestaurante);
+  printer.println("-------------------------------");
+
+  printer.alignLeft();
+  printer.println(`Cliente: ${pedido.order_customer_name}`);
+  printer.println(`Mesa/Label: ${pedido.order_table_label}`);
+  if (pedido.order_comment)
+    printer.println(`Comentario: ${pedido.order_comment}`);
+
+  printer.println("-------------------------------");
+  printer.println("CANT  PRODUCTO          ");
+
+  // Items
+  pedido.items.forEach((item) => {
+    printer.println(`${item.item_quantity}    ${item.item_product_name}`);
+    if (item.item_product_comment)
+      printer.println(`      * ${item.item_product_comment}`);
+  });
+
+  printer.println("-------------------------------");
+  printer.alignCenter();
+  printer.println("¡Gracias por su pedido!");
+  printer.newLine();
+  printer.cut();
