@@ -5,7 +5,7 @@
                 <h1 class="text-2xl font-bold">Seleccionar Mesas</h1>
                 <p class="text-sm text-zinc-600">Toca las mesas para elegir una o varias. Luego confirma para continuar el pedido.</p>
             </div>
-            <flux:button href="{{ route('mozo.orders.create') }}" variant="ghost" icon="arrow-left">Volver al pedido</flux:button>
+            <flux:button href="{{ route('mozo.orders.create') }}" variant="ghost" icon="arrow-left"  style="color: red; font-size: 14px;">Volver al pedido</flux:button>
         </div>
 
         <div class="rounded-xl border border-dashed border-zinc-300 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
@@ -18,7 +18,7 @@
             <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
                     <p class="text-sm font-medium">{{ $tableCount }} mesas configuradas</p>
-                    <p class="text-sm text-zinc-600" x-text="label()"></p>
+                    <p x-html="label()"></p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <flux:button variant="ghost" icon="arrow-path" type="button" x-on:click="clearSelection">Limpiar</flux:button>
@@ -73,11 +73,23 @@
                 clearSelection() {
                     this.selected = [];
                 },
+
                 label() {
-                    if (!this.selected.length) return 'Sin mesas seleccionadas';
+                    if (!this.selected.length) {
+                        return '<span style="font-size: 18px; color: red; background-color: yellow; padding: 2px 6px; border-radius: 6px;">Sin mesas seleccionadas</span>';
+                    
+                    }
+                
                     const prefix = this.selected.length === 1 ? 'Mesa' : 'Mesas';
-                    return `${prefix} ${this.selected.join(' + ')}`;
+                
+                    return `
+                        <span style="font-size: 20px; font-weight: bold; color: red; background-color: yellow; padding: 2px 6px; border-radius: 6px;">
+                            ${prefix} ${this.selected.join(' + ')}
+                        </span>
+                    `;
                 },
+
+
                 confirmSelection() {
                     const params = new URLSearchParams();
                     this.selected.forEach((table) => params.append('tables[]', table));

@@ -128,7 +128,7 @@
                             <div class="flex items-start justify-between gap-2">
                                 <div>
                                     <p class="text-sm text-zinc-600">Selecciona una o varias mesas.</p>
-                                    <p class="text-sm font-medium" x-text="selectionLabel()"></p>
+                                    <p class="text-sm font-medium" x-html="selectionLabel()"></p>
                                 </div>
                                 <flux:button
                                     type="button"
@@ -320,7 +320,7 @@
                     }
 
                     if (!this.selectedTables.length) {
-                        return 'Sin mesas seleccionadas';
+                        return '<span style="color:red;font-weight:bold">SELECCIONA MESAS</span>';
                     }
 
                     const prefix = this.selectedTables.length === 1 ? 'Mesa' : 'Mesas';
