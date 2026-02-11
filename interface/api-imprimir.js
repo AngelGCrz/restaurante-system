@@ -59,7 +59,8 @@ async function imprimirTicket(pedido) {
   const printer = new ThermalPrinter({
     type: PrinterTypes.EPSON,
     //interface: `printer:${nombreImpresora}`,
-    interface: '\\\\ANGEL-ASUS\\POSPrinter POS-80C',
+    interface: '\\\\LAPTOP-CTG52S1V\\POSPrinter POS-80C',
+    // interface: '\\\\ANGEL-ASUS\\POSPrinter POS-80C',
     width: 48,
     //characterSet: "PC437",
     //removeSpecialCharacters: false,
