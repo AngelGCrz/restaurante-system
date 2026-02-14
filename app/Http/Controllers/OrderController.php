@@ -27,6 +27,168 @@ class OrderController extends Controller
         return view('orders.index', compact('orders'));
     }
 
+    /**
+     * Listado de pedidos creados por el mozo autenticado.
+     */
+    public function mozoIndex()
+    {
+        $query = Order::with(['user'])->where('user_id', auth()->id())->orderBy('created_at', 'desc');
+        $orders = $query->get();
+        return view('orders.mozo-index', compact('orders'));
+    }
+
+    /**
+     * Devuelve si existe un pedido pendiente para una mesa dada (JSON).
+     */
+    public function pendingByTable($table)
+    {
+        $table = (int) $table;
+        $order = Order::where('status', 'pendiente')
+            ->whereJsonContains('table_numbers', $table)
+            ->first();
+
+        if (! $order) {
+            return response()->json(null);
+        }
+
+        return response()->json([
+            'id' => $order->id,
+            'user_id' => $order->user_id,
+        ]);
+    }
+
+    /**
+     * Mostrar formulario para agregar productos a un pedido (mozo).
+     */
+    public function addItemsForm(Order $order)
+    {
+        if (! (auth()->check() && (auth()->user()->role->name === 'mozo' || auth()->id() === $order->user_id))) {
+            abort(403);
+        }
+
+        if ($order->status !== 'pendiente') {
+            return redirect()->route('mozo.orders.show', $order)->withErrors(['order' => 'Solo puede agregarse productos a pedidos pendientes.']);
+        }
+
+        $categories = Category::with(['products' => function ($q) {
+            $q->where('is_available', true)->orderBy('name');
+        }])->orderBy('name')->get();
+
+        return view('orders.add-items', compact('order', 'categories'));
+    }
+
+    /**
+     * Procesar y guardar productos añadidos al pedido por el mozo.
+     */
+    public function addItemsStore(Request $request, Order $order)
+    {
+        if (! (auth()->check() && (auth()->user()->role->name === 'mozo' || auth()->id() === $order->user_id))) {
+            abort(403);
+        }
+
+        if ($order->status !== 'pendiente') {
+            return redirect()->route('mozo.orders.show', $order)->withErrors(['order' => 'Solo puede agregarse productos a pedidos pendientes.']);
+        }
+
+        $filteredItems = collect($request->input('items', []))
+            ->filter(fn ($item) => isset($item['quantity']) && (int) $item['quantity'] > 0)
+            ->values()
+            ->all();
+
+        $validated = $request->merge(['items' => $filteredItems])->validate([
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.comment' => 'nullable|string',
+        ]);
+
+        $stockEnabled = (bool) Setting::getValue('stock_enabled', false);
+        $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
+
+        try {
+            $order = DB::transaction(function () use ($order, $validated, $stockEnabled, $stockAllowNegative) {
+                $total = $order->total ?? 0;
+
+                // Create a new child order that contains the newly added items so kitchen sees it as a separate order
+                $childOrder = Order::create([
+                    'user_id' => auth()->id(),
+                    'customer_name' => $order->customer_name,
+                    'comment' => 'Agregado a la orden #' . $order->id,
+                    'type' => $order->type,
+                    'table_numbers' => $order->table_numbers,
+                    'total' => 0,
+                    'status' => 'pendiente',
+                    'origin_order_id' => $order->id,
+                ]);
+
+                foreach ($validated['items'] as $item) {
+                    $product = Product::lockForUpdate()->find($item['product_id']);
+                    if (! $product) {
+                        continue;
+                    }
+
+                    if ($stockEnabled) {
+                        if ($product->stock <= 0) {
+                            throw new \RuntimeException($product->name . ' (agotado)');
+                        }
+
+                        if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
+                            throw new \RuntimeException($product->name . ' (disponible: ' . $product->stock . ')');
+                        }
+                    }
+
+                    $price = $product->price;
+                    if ($childOrder->type === 'llevar' && $price > 9) {
+                        $price += 1;
+                    }
+
+                    $subtotal = $price * $item['quantity'];
+
+                    $childOrder->items()->create([
+                        'product_id' => $product->id,
+                        'quantity' => $item['quantity'],
+                        'price' => $price,
+                        'comment' => $item['comment'] ?? null,
+                    ]);
+
+                    if ($stockEnabled) {
+                        $product->decreaseStock((int) $item['quantity'], $stockAllowNegative);
+                    }
+
+                    $total += $subtotal;
+                }
+
+                // update totals: child order gets its total, and original order's total increases
+                $childOrder->update(['total' => $total]);
+                $order->increment('total', $total);
+
+                return $order;
+            });
+
+            // Enviar a cocina la nueva orden hija que contiene solo los items añadidos
+            try {
+                $childOrder = Order::where('origin_order_id', $order->id)->orderBy('created_at', 'desc')->first();
+                if ($childOrder) {
+                    app(PrinterService::class)->printKitchenOrder($childOrder);
+                } else {
+                    app(PrinterService::class)->printKitchenOrder($order);
+                }
+            } catch (\Throwable $e) {
+                \Log::error('Automatic kitchen print failed when adding items to order ' . $order->id . ': ' . $e->getMessage());
+            }
+
+            $childOrder = Order::where('origin_order_id', $order->id)->orderBy('created_at', 'desc')->first();
+            $msg = 'Productos agregados al pedido.';
+            if ($childOrder) {
+                $msg .= ' Se creó la orden #' . $childOrder->id . ' para cocina.';
+            }
+            return redirect()->route('mozo.orders.show', $order)->with('success', $msg);
+
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['items' => 'Stock insuficiente para: ' . $e->getMessage()])->withInput();
+        }
+    }
+
     public function create()
     {
         // Load products for waiter view (show sold-out as disabled badge instead of hiding)

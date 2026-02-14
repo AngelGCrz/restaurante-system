@@ -72,8 +72,12 @@ Route::get('/ping', function () {
 
     // Rutas para Mozo
     Route::middleware(['role:mozo'])->prefix('waiter')->group(function () {
+        Route::get('orders', [OrderController::class, 'mozoIndex'])->name('mozo.orders.index');
         Route::get('orders/create', [OrderController::class, 'create'])->name('mozo.orders.create');
         Route::post('orders', [OrderController::class, 'store'])->name('mozo.orders.store');
+        Route::get('orders/pending-by-table/{table}', [OrderController::class, 'pendingByTable'])->name('mozo.orders.pending-by-table');
+        Route::get('orders/{order}/add-items', [OrderController::class, 'addItemsForm'])->name('mozo.orders.add-items');
+        Route::post('orders/{order}/add-items', [OrderController::class, 'addItemsStore'])->name('mozo.orders.add-items.store');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('mozo.orders.show');
         Route::get('tables/select', [OrderController::class, 'selectTables'])->name('mozo.tables.select');
     });

@@ -3,6 +3,7 @@
         <h1 class="text-2xl font-bold">Monitor de Cocina</h1>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
             @foreach($orders as $order)
                 <div class="order-card rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800" data-order-id="{{ $order->id }}">
                     <div class="flex justify-between items-center mb-3">
@@ -21,6 +22,12 @@
                         <p class="text-sm font-semibold">Cliente: {{ $order->customer_name ?? 'N/A' }}</p>
                         <p class="text-sm">Servicio: {{ $order->table_label }}</p>
                     </div>
+
+                    @if(!empty($order->origin_order_id))
+                        <div class="mb-3 rounded-lg bg-yellow-50 p-2 text-sm text-yellow-700 italic">
+                            Agregado a la orden: #{{ $order->origin_order_id }}
+                        </div>
+                    @endif
 
                     {{-- Comentario general del pedido --}}
                     @if(!empty($order->comment))

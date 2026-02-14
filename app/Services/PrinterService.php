@@ -162,6 +162,9 @@ class PrinterService
 
         // Order info
         $output .= "Pedido: #" . $order->id . $nl;
+        if (! empty($order->origin_order_id)) {
+            $output .= "Agregado a la orden: #" . $order->origin_order_id . $nl;
+        }
         $output .= "Fecha: " . $order->created_at->format('Y-m-d H:i') . $nl;
         $output .= "Mozo: " . optional($order->user)->name . $nl;
 
@@ -344,6 +347,9 @@ class PrinterService
         $printer->feed();
 
         $printer->text("Pedido: #" . $order->id);
+        if (! empty($order->origin_order_id)) {
+            $printer->text("(Agregado a la orden: #" . $order->origin_order_id . ")");
+        }
         $printer->text("Fecha: " . $order->created_at->format('Y-m-d H:i'));
         $printer->text("Mozo: " . optional($order->user)->name);
 
@@ -389,6 +395,9 @@ class PrinterService
         $lines = [];
         $lines[] = "===== COCINA =====";
         $lines[] = "Pedido: #" . $order->id;
+        if (! empty($order->origin_order_id)) {
+            $lines[] = "(Agregado a la orden: #" . $order->origin_order_id . ")";
+        }
         $lines[] = "Fecha: " . $order->created_at->format('Y-m-d H:i');
         $lines[] = "Mozo: " . optional($order->user)->name;
 
@@ -416,6 +425,8 @@ class PrinterService
 
         return implode("\n", $lines) . "\n";
     }
+
+    
 
     protected function writeToFile($orderId, string $content): bool
     {

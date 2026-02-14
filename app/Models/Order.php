@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    protected $fillable = ['user_id', 'customer_name', 'comment', 'type', 'table_numbers', 'total', 'status', 'prepared_at', 'preparation_seconds'];
+    protected $fillable = ['user_id', 'customer_name', 'comment', 'type', 'table_numbers', 'total', 'status', 'prepared_at', 'preparation_seconds', 'origin_order_id'];
 
     protected $casts = [
         'table_numbers' => 'array',
@@ -39,5 +39,15 @@ class Order extends Model
 {
     return $this->hasMany(\App\Models\OrderItem::class);
 }
+
+    public function originOrder()
+    {
+        return $this->belongsTo(__CLASS__, 'origin_order_id');
+    }
+
+    public function childOrders()
+    {
+        return $this->hasMany(__CLASS__, 'origin_order_id');
+    }
 
 }

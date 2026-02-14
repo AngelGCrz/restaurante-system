@@ -119,6 +119,11 @@
                             </form>
                         </div>
                     @endif
+                    @if($order->status === 'pendiente' && auth()->user()->role->name === 'mozo')
+                        <div class="mt-6">
+                            <flux:button href="{{ route('mozo.orders.add-items', $order) }}" variant="primary" class="w-full">Agregar Productos</flux:button>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
