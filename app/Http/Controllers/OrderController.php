@@ -31,11 +31,23 @@ class OrderController extends Controller
      * Listado de pedidos creados por el mozo autenticado.
      */
     public function mozoIndex()
-    {
-        $query = Order::with(['user'])->where('user_id', auth()->id())->orderBy('created_at', 'desc');
-        $orders = $query->get();
-        return view('orders.mozo-index', compact('orders'));
-    }
+{ 
+    $orders = Order::with('user')
+        ->where('user_id', auth()->id())
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+    return view('orders.mozo-index', compact('orders'));
+}
+
+
+
+    // public function mozoIndex()
+    // {
+    //     $query = Order::with(['user'])->where('user_id', auth()->id())->orderBy('created_at', 'desc');
+    //     $orders = $query->get();
+    //     return view('orders.mozo-index', compact('orders'));
+    // }
 
     /**
      * Devuelve si existe un pedido pendiente para una mesa dada (JSON).
@@ -459,6 +471,28 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         $order->load('items.product');
-        return view('orders.show', compact('order'));
+    
+        $categories = Category::with('products')->get();
+        return view('orders.show', compact('order', 'categories'));
     }
+    public function addProduct(Request $request)
+    {
+        $order = Order::findOrFail($request->order_id);
+    
+        $order->items()->create([
+            'product_id' => $request->product_id,
+            'quantity' => 1,
+            'price' => Product::find($request->product_id)->price,
+        ]);
+    
+        return back();
+    }
+
+
+
+    // public function show(Order $order)
+    // {
+    //     $order->load('items.product');
+    //     return view('orders.show', compact('order'));
+    // }
 }

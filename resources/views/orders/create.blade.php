@@ -18,7 +18,7 @@
                 initialComment: @json(old('comment', '')),
             })'
             x-init="init()"
-            x-on:submit="clearDraft()"
+            {{-- x-on:submit="clearDraft()" --}}
         >
             @csrf
             <!-- Barra superior fija en móviles: muestra total y cantidad de ítems en tiempo real -->
@@ -426,4 +426,10 @@
             };
         }
     </script>
+    @if(session('success'))
+    <script>
+        localStorage.removeItem('order_form_draft');
+    </script>
+@endif
+
 </x-layouts.app>

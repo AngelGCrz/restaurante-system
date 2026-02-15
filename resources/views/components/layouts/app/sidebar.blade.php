@@ -210,5 +210,7 @@
         </script>
 
         @fluxScripts
+        @stack('scripts')
+
     </body>
 </html>

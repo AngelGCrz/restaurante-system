@@ -15,6 +15,7 @@ use App\Livewire\Settings\TwoFactor;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
+
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
@@ -59,6 +60,7 @@ Route::get('/ping', function () {
         Route::get('cash', [CashController::class, 'index'])->name('cash.index');
         Route::post('cash/open', [CashController::class, 'open'])->name('cash.open');
         Route::post('cash/close', [CashController::class, 'close'])->name('cash.close');
+        Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     });
 
     // Rutas para Cocina
@@ -70,6 +72,9 @@ Route::get('/ping', function () {
         Route::get('kitchen/{order}', [KitchenController::class, 'show'])->name('kitchen.show');
     });
 
+    
+
+
     // Rutas para Mozo
     Route::middleware(['role:mozo'])->prefix('waiter')->group(function () {
         Route::get('orders', [OrderController::class, 'mozoIndex'])->name('mozo.orders.index');
@@ -79,8 +84,16 @@ Route::get('/ping', function () {
         Route::get('orders/{order}/add-items', [OrderController::class, 'addItemsForm'])->name('mozo.orders.add-items');
         Route::post('orders/{order}/add-items', [OrderController::class, 'addItemsStore'])->name('mozo.orders.add-items.store');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('mozo.orders.show');
-        Route::get('tables/select', [OrderController::class, 'selectTables'])->name('mozo.tables.select');
+        Route::get('tables/select', [OrderController::class, 'selectTables'])->name('mozo.tables.select');        
+        
+        Route::get('/waiter/orders', [OrderController::class, 'mozoIndex'])->name('mozo.orders.index');
+
+
     });
+
+        
+
+
 });
 
 Route::view('dashboard', 'dashboard')
@@ -88,6 +101,7 @@ Route::view('dashboard', 'dashboard')
     ->name('dashboard');
 
 Route::middleware(['auth'])->group(function () {
+    Route::post('/orders/add-product', [OrderController::class, 'addProduct'])->name('order.addProduct');
     Route::redirect('settings', 'settings/profile');
 
     Route::get('settings/profile', Profile::class)->name('profile.edit');
