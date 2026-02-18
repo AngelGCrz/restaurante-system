@@ -61,6 +61,7 @@ Route::get('/ping', function () {
         Route::post('cash/open', [CashController::class, 'open'])->name('cash.open');
         Route::post('cash/close', [CashController::class, 'close'])->name('cash.close');
         Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::post('/orders/pay-table', [OrderController::class, 'payTable'])->name('orders.pay-table')->middleware('auth');
     });
 
     // Rutas para Cocina

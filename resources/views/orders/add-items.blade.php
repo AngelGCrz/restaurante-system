@@ -6,6 +6,30 @@
 
             <div x-data="orderManager()">
 
+                {{-- 📋 Información del Pedido --}}
+        <div class="mb-6 bg-gray-900 border border-gray-700 rounded-2xl p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold">Pedido #{{ $order->id }}</h1>
+                    <p class="text-gray-400 text-sm mt-1">
+                        Mesa: <span class="text-white font-semibold">{{ $order->table_label }}</span>
+                    </p>
+                    @if($order->customer_name)
+                        <p class="text-gray-400 text-sm">
+                            Cliente: <span class="text-white">{{ $order->customer_name }}</span>
+                        </p>
+                    @endif
+                </div>
+                <div class="text-right">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold
+                        {{ $order->status === 'pagado' ? 'bg-green-600' : 
+                           ($order->status === 'pendiente' ? 'bg-yellow-600' : 'bg-red-600') }}">
+                        {{ ucfirst($order->status) }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
                 {{-- Botones de Categorías --}}
                 <div class="flex gap-2 mb-6 flex-wrap">
                     @foreach($categories as $category)
@@ -51,7 +75,7 @@
                                     </span>
 
                                     <button type="button"
-                                        @click="increase({{ $product->id }}, '{{ $product->name }}', {{ $product->price }})"
+                                        @click="increase({{ $product->id }}, '{{ $product->name }}', {{ (float) $product->price }})"
                                         class="bg-green-600 hover:bg-green-700 px-3 py-1 rounded-lg">
                                         +
                                     </button>
@@ -132,6 +156,8 @@ document.addEventListener('alpine:init', () => {
         items: [],
 
         increase(id, name, price) {
+            // ✅ Forzar que price sea número flotante
+            price = parseFloat(price);
             let existing = this.items.find(p => p.id === id);
             if (existing) {
                 existing.quantity++;

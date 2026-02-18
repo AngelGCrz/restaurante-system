@@ -14,18 +14,92 @@ use Illuminate\Support\Facades\DB;
 class OrderController extends Controller
 {
     public function index()
-    {
-        
-        $query = Order::with(['user'])->orderBy('created_at', 'desc');
+{
+    $query = Order::with(['user'])->orderBy('created_at', 'desc');
 
-        // En caja se prioriza ver pagos; mantenemos pendiente visibles para poder cobrarlos
-        if (auth()->check() && auth()->user()->role->name === 'cajero') {
-            $query->orderByRaw("FIELD(status, 'pendiente', 'pagado', 'cancelado')");
+    if (auth()->check() && auth()->user()->role->name === 'cajero') {
+        $query->orderByRaw("FIELD(status, 'pendiente', 'pagado', 'cancelado')");
+    }
+
+    $orders = $query->get();
+
+    if (auth()->check() && auth()->user()->role->name === 'cajero') {
+        
+        // 1️⃣ Agrupar todos los pedidos por mesa
+        $grouped = $orders->groupBy(function($order) {
+            if ($order->type === 'llevar') return 'llevar';
+            return implode(',', $order->table_numbers ?? []);
+        });
+
+        // 2️⃣ Separar por sesión dentro de cada mesa
+        $ordersByTable = collect();
+
+        foreach ($grouped as $tableKey => $tableOrders) {
+            
+            // Ordenar por fecha ascendente para procesar cronológicamente
+            $sorted = $tableOrders->sortBy('created_at');
+            
+            $session = collect();
+            $sessionIndex = 0;
+
+            foreach ($sorted as $order) {
+                $session->push($order);
+
+                // Si el pedido es padre (sin origin_order_id) y ya fue cobrado/cancelado,
+                // verificar si el siguiente pedido es una nueva sesión
+                // Una sesión termina cuando NO hay ningún pedido pendiente en ella
+                $hasPending = $session->where('status', 'pendiente')->count() > 0;
+
+                // Si esta es la última orden del grupo, siempre guardar la sesión
+            }
+
+            // 3️⃣ Separar sesiones: nueva sesión = nuevo pedido padre sin origin_order_id
+            //    después de que todos los anteriores están cerrados
+            $sessions = collect();
+            $currentSession = collect();
+
+            foreach ($sorted as $order) {
+                // Si es un pedido padre (origen) y la sesión actual ya no tiene pendientes
+                $isParent = is_null($order->origin_order_id);
+                $currentHasPending = $currentSession->where('status', 'pendiente')->count() > 0;
+                $currentHasOrders = $currentSession->count() > 0;
+                $allClosed = $currentHasOrders && !$currentHasPending;
+
+                if ($isParent && $allClosed) {
+                    // Guardar sesión anterior y empezar una nueva
+                    $sessions->push([
+                        'tableKey' => $tableKey,
+                        'orders' => $currentSession,
+                        'isCurrent' => false, // Sesión histórica
+                    ]);
+                    $currentSession = collect();
+                }
+
+                $currentSession->push($order);
+            }
+
+            // Guardar la última sesión (la activa)
+            if ($currentSession->count() > 0) {
+                $sessions->push([
+                    'tableKey' => $tableKey,
+                    'orders' => $currentSession,
+                    'isCurrent' => true, // Sesión actual
+                ]);
+            }
+
+            foreach ($sessions as $session) {
+                $ordersByTable->push($session);
+            }
         }
 
-        $orders = $query->get();
-        return view('orders.index', compact('orders'));
+        // 4️⃣ Ordenar: sesiones activas primero
+        $ordersByTable = $ordersByTable->sortByDesc('isCurrent');
+
+        return view('orders.index', compact('ordersByTable'));
     }
+
+    return view('orders.index', compact('orders'));
+}
 
     /**
      * Listado de pedidos creados por el mozo autenticado.
@@ -34,10 +108,20 @@ class OrderController extends Controller
 { 
     $orders = Order::with('user')
         ->where('user_id', auth()->id())
+        ->where('status', 'pendiente') // Solo mostrar pedidos activos
         ->orderBy('created_at', 'desc')
         ->get();
 
-    return view('orders.mozo-index', compact('orders'));
+    // 📊 Agrupar pedidos por mesa
+    $ordersByTable = $orders->groupBy(function($order) {
+        if ($order->type === 'llevar') {
+            return 'llevar'; // Agrupar todos los "para llevar" juntos
+        }
+        // Convertir el JSON de mesas a string para agrupar
+        return implode(',', $order->table_numbers ?? []);
+    });
+
+    return view('orders.mozo-index', compact('ordersByTable'));
 }
 
 
@@ -119,63 +203,62 @@ class OrderController extends Controller
 
         try {
             $order = DB::transaction(function () use ($order, $validated, $stockEnabled, $stockAllowNegative) {
-                $total = $order->total ?? 0;
+    
+    $childOrder = Order::create([
+        'user_id' => auth()->id(),
+        'customer_name' => $order->customer_name,
+        'comment' => 'Agregado a la orden #' . $order->id,
+        'type' => $order->type,
+        'table_numbers' => $order->table_numbers,
+        'total' => 0,
+        'status' => 'pendiente',
+        'origin_order_id' => $order->id,
+    ]);
 
-                // Create a new child order that contains the newly added items so kitchen sees it as a separate order
-                $childOrder = Order::create([
-                    'user_id' => auth()->id(),
-                    'customer_name' => $order->customer_name,
-                    'comment' => 'Agregado a la orden #' . $order->id,
-                    'type' => $order->type,
-                    'table_numbers' => $order->table_numbers,
-                    'total' => 0,
-                    'status' => 'pendiente',
-                    'origin_order_id' => $order->id,
-                ]);
+    $childTotal = 0; // ✅ Solo cuenta los items nuevos
 
-                foreach ($validated['items'] as $item) {
-                    $product = Product::lockForUpdate()->find($item['product_id']);
-                    if (! $product) {
-                        continue;
-                    }
+    foreach ($validated['items'] as $item) {
+        $product = Product::lockForUpdate()->find($item['product_id']);
+        if (!$product) continue;
 
-                    if ($stockEnabled) {
-                        if ($product->stock <= 0) {
-                            throw new \RuntimeException($product->name . ' (agotado)');
-                        }
+        if ($stockEnabled) {
+            if ($product->stock <= 0) {
+                throw new \RuntimeException($product->name . ' (agotado)');
+            }
+            if (!$product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
+                throw new \RuntimeException($product->name . ' (disponible: ' . $product->stock . ')');
+            }
+        }
 
-                        if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
-                            throw new \RuntimeException($product->name . ' (disponible: ' . $product->stock . ')');
-                        }
-                    }
+        $price = $product->price;
+        if ($childOrder->type === 'llevar' && $price > 9) {
+            $price += 1;
+        }
 
-                    $price = $product->price;
-                    if ($childOrder->type === 'llevar' && $price > 9) {
-                        $price += 1;
-                    }
+        $subtotal = $price * $item['quantity'];
 
-                    $subtotal = $price * $item['quantity'];
+        $childOrder->items()->create([
+            'product_id' => $product->id,
+            'quantity' => $item['quantity'],
+            'price' => $price,
+            'comment' => $item['comment'] ?? null,
+        ]);
 
-                    $childOrder->items()->create([
-                        'product_id' => $product->id,
-                        'quantity' => $item['quantity'],
-                        'price' => $price,
-                        'comment' => $item['comment'] ?? null,
-                    ]);
+        if ($stockEnabled) {
+            $product->decreaseStock((int) $item['quantity'], $stockAllowNegative);
+        }
 
-                    if ($stockEnabled) {
-                        $product->decreaseStock((int) $item['quantity'], $stockAllowNegative);
-                    }
+        $childTotal += $subtotal; // ✅ Acumula solo los nuevos items
+    }
 
-                    $total += $subtotal;
-                }
+    // ✅ El hijo solo tiene su propio total (S/6.50)
+    $childOrder->update(['total' => $childTotal]);
+    
+    // ✅ El padre se incrementa correctamente
+    $order->increment('total', $childTotal);
 
-                // update totals: child order gets its total, and original order's total increases
-                $childOrder->update(['total' => $total]);
-                $order->increment('total', $total);
-
-                return $order;
-            });
+    return $order;
+});
 
             // Enviar a cocina la nueva orden hija que contiene solo los items añadidos
             try {
@@ -304,8 +387,27 @@ class OrderController extends Controller
         ])->withInput();
     }
 
+    // 🔍 NUEVA LÓGICA: Buscar pedido pendiente existente en la(s) mesa(s) seleccionada(s)
     if ($validated['type'] === 'mesa') {
+        $existingOrder = Order::where('status', 'pendiente')
+            ->where('user_id', $request->user()->id) // Del mismo mozo
+            ->where(function($query) use ($validated) {
+                foreach ($validated['tables'] as $table) {
+                    $query->orWhereJsonContains('table_numbers', $table);
+                }
+            })
+            ->first();
+
+        // ✅ Si existe un pedido activo, redirigir para agregar items
+        if ($existingOrder) {
+            return redirect()
+                ->route('mozo.orders.add-items', $existingOrder)
+                ->with('info', 'Ya existe un pedido activo en esta mesa. Agrega productos aquí.');
+        }
+
+        // ⚠️ Validar que la mesa no esté ocupada por otro mozo
         $busyTables = Order::where('status', 'pendiente')
+            ->where('user_id', '!=', $request->user()->id) // De OTRO mozo
             ->pluck('table_numbers')
             ->flatten()
             ->map(fn ($t) => (int) $t)
@@ -315,9 +417,9 @@ class OrderController extends Controller
             ->all();
 
         $conflicts = array_values(array_intersect($busyTables, $validated['tables']));
-        if (! empty($conflicts)) {
+        if (!empty($conflicts)) {
             return back()->withErrors([
-                'tables' => 'Las mesas ' . implode(' + ', $conflicts) . ' ya están ocupadas en otro pedido.',
+                'tables' => 'Las mesas ' . implode(' + ', $conflicts) . ' ya están ocupadas por otro mozo.',
             ])->withInput();
         }
     }
@@ -331,7 +433,7 @@ class OrderController extends Controller
         $insufficient = [];
         foreach ($validated['items'] as $item) {
             $product = Product::find($item['product_id']);
-            if (! $product) {
+            if (!$product) {
                 continue;
             }
 
@@ -340,12 +442,12 @@ class OrderController extends Controller
                 continue;
             }
 
-            if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
+            if (!$product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
                 $insufficient[] = $product->name . ' (disponible: ' . $product->stock . ')';
             }
         }
 
-        if (! empty($insufficient)) {
+        if (!empty($insufficient)) {
             return back()->withErrors([
                 'items' => 'Stock insuficiente para: ' . implode(', ', $insufficient),
             ])->withInput();
@@ -355,7 +457,7 @@ class OrderController extends Controller
     try {
         $order = DB::transaction(function () use ($request, $validated, $stockEnabled, $stockAllowNegative) {
 
-            // Crear el pedido primero
+            // 🆕 Crear nuevo pedido
             $order = Order::create([
                 'user_id' => $request->user()->id,
                 'customer_name' => $validated['customer_name'],
@@ -369,24 +471,22 @@ class OrderController extends Controller
 
             foreach ($validated['items'] as $item) {
                 $product = Product::lockForUpdate()->find($item['product_id']);
-                if (! $product) {
+                if (!$product) {
                     continue;
                 }
 
-                // Validación final de stock
                 if ($stockEnabled) {
                     if ($product->stock <= 0) {
                         throw new \RuntimeException($product->name . ' (agotado)');
                     }
 
-                    if (! $product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
+                    if (!$product->hasStockFor((int) $item['quantity'], $stockAllowNegative)) {
                         throw new \RuntimeException($product->name . ' (disponible: ' . $product->stock . ')');
                     }
                 }
 
                 $price = $product->price;
 
-                // 👉 Recargo: si es para llevar y precio > 9
                 if ($validated['type'] === 'llevar' && $price > 9) {
                     $price += 1;
                 }
@@ -400,7 +500,6 @@ class OrderController extends Controller
                     'comment' => $item['comment'] ?? null,
                 ]);
 
-                // Decrementar stock si está habilitado
                 if ($stockEnabled) {
                     $product->decreaseStock((int) $item['quantity'], $stockAllowNegative);
                 }
@@ -413,7 +512,7 @@ class OrderController extends Controller
             return $order;
         });
 
-        // Intentar imprimir en cocina automáticamente si el pedido fue creado por un mozo
+        // Imprimir en cocina
         if ($request->user()->role->name === 'mozo') {
             try {
                 app(PrinterService::class)->printKitchenOrder($order);
@@ -422,7 +521,6 @@ class OrderController extends Controller
             }
         }
 
-        // Redireccionar según el rol
         $route = $request->user()->role->name === 'mozo' ? 'mozo.orders.show' : 'orders.show';
         return redirect()->route($route, $order)->with('success', 'Pedido registrado.');
 
@@ -487,6 +585,59 @@ class OrderController extends Controller
     
         return back();
     }
+
+    /**
+ * Cobrar todos los pedidos pendientes de una mesa
+ */
+public function payTable(Request $request)
+{
+    $request->validate([
+        'table_key' => 'required|string',
+        'payment_method' => 'required|in:efectivo,yape,tarjeta',
+        'receipt_type' => 'required|in:ticket,boleta,factura',
+    ]);
+
+    $tableKey = $request->table_key;
+
+    // Buscar todos los pedidos pendientes de esa mesa
+    $orders = Order::where('status', 'pendiente')
+        ->when($tableKey !== 'llevar', function($query) use ($tableKey) {
+            // Para mesas específicas
+            $tableNumbers = explode(',', $tableKey);
+            $query->where(function($q) use ($tableNumbers) {
+                foreach ($tableNumbers as $table) {
+                    $q->orWhereJsonContains('table_numbers', (int)$table);
+                }
+            });
+        })
+        ->when($tableKey === 'llevar', function($query) {
+            // Para pedidos "para llevar"
+            $query->where('type', 'llevar');
+        })
+        ->get();
+
+    if ($orders->isEmpty()) {
+        return back()->withErrors(['table' => 'No hay pedidos pendientes en esta mesa.']);
+    }
+
+    // Actualizar todos los pedidos
+    DB::transaction(function() use ($orders, $request) {
+        foreach ($orders as $order) {
+            $order->update([
+                'payment_method' => $request->payment_method,
+                'receipt_type' => $request->receipt_type,
+                'status' => 'pagado',
+            ]);
+        }
+    });
+
+    $totalCobrado = $orders->sum('total');
+    $cantidadPedidos = $orders->count();
+
+    return redirect()->route('orders.index')->with('success', 
+        "Mesa cobrada exitosamente. {$cantidadPedidos} pedido(s) | Total: S/ " . number_format($totalCobrado, 2)
+    );
+}
 
 
 
