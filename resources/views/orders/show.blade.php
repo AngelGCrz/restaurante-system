@@ -16,6 +16,9 @@
             <div class="lg:col-span-2 space-y-6">
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
                     <h2 class="text-lg font-semibold mb-4">Productos</h2>
+                    @php
+                        $orderItemsTotal = $order->items->sum(function($it) { return ($it->price * $it->quantity); });
+                    @endphp
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b border-zinc-200 dark:border-zinc-700">
@@ -47,7 +50,7 @@
                         <tfoot>
                             <tr>
                                 <td colspan="3" class="pt-4 text-right font-bold text-lg">Total:</td>
-                                <td class="pt-4 text-right font-bold text-lg text-primary-600">${{ number_format($order->total, 2) }}</td>
+                                <td class="pt-4 text-right font-bold text-lg text-primary-600">${{ number_format($orderItemsTotal, 2) }}</td>
                             </tr>
                         </tfoot>
                     </table>

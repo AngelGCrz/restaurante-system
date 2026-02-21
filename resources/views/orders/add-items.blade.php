@@ -117,11 +117,7 @@
                         </div>
                     </template>
                 
-                    {{-- Total --}}
-                    <div class="flex justify-between items-center mt-4 text-xl font-bold">
-                        <span>Total:</span>
-                        <span x-text="'S/ ' + total().toFixed(2)"></span>
-                    </div>
+                    {{-- Total removed: table-level total is shown in the mesa header --}}
                 
                     {{-- Botón limpiar --}}
                     <button type="button"

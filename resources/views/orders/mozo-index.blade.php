@@ -48,26 +48,18 @@ S/ {{ number_format($totalMesa, 2) }}
                         <tr class="border-b border-zinc-200 dark:border-zinc-700">
                             <th class="pb-3 font-semibold">ID</th>
                             <th class="pb-3 font-semibold">Cliente</th>
-                            <th class="pb-3 font-semibold">Total</th>
                             <th class="pb-3 font-semibold">Estado</th>
                             <th class="pb-3 font-semibold">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                         @foreach($tableOrders as $order)
-    {{-- Fila padre --}}
-        @php
-            $parentItemsTotal = $order->items->sum(function($it) { return ($it->price * $it->quantity); });
-            $childrenPendingTotal = ($order->childOrders ?? collect())->where('status', 'pendiente')->sum('total');
-            $displayOrderTotal = $parentItemsTotal + $childrenPendingTotal;
-        @endphp
         <tr class="bg-zinc-50 dark:bg-zinc-800">
         <td class="py-3 font-bold">#{{ $order->id }}</td>
         <td class="py-3">
             {{ $order->customer_name ?? 'N/A' }}
             <span class="text-xs text-gray-400 ml-1">{{ $order->table_label }}</span>
         </td>
-        <td class="py-3">S/ {{ number_format($displayOrderTotal, 2) }}</td>
         <td class="py-3">
             <span class="rounded-full px-2 py-1 text-xs
                 {{ $order->status === 'pagado' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 
@@ -95,7 +87,6 @@ S/ {{ number_format($totalMesa, 2) }}
                     <span class="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 px-2 py-0.5 rounded-full ml-1">🥡 Para llevar</span>
                 @endif
             </td>
-            <td class="py-2 text-sm text-gray-400">S/ {{ number_format($child->total, 2) }}</td>
             <td class="py-2">
                 <span class="rounded-full px-2 py-1 text-xs
                     {{ $child->status === 'pagado' ? 'bg-green-100 text-green-700' : 

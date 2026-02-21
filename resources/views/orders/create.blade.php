@@ -21,16 +21,7 @@
             {{-- x-on:submit="clearDraft()" --}}
         >
             @csrf
-            <!-- Barra superior fija en móviles: muestra total y cantidad de ítems en tiempo real -->
-            <div x-show="selectedList.length" x-cloak class="md:hidden sticky top-0 z-40 w-full bg-white dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
-                <div class="flex items-center justify-between gap-3 px-4 py-2">
-                    <div class="flex items-baseline gap-3">
-                        <div class="text-xs text-zinc-500 dark:text-zinc-300">Total a pagar</div>
-                        <div class="text-lg font-semibold text-red-600 dark:text-red-400" x-text="currency(previewTotal)"></div>
-                    </div>
-                    <div class="text-sm text-zinc-500 dark:text-zinc-300" x-text="itemCount + ' ítems'"></div>
-                </div>
-            </div>
+            <!-- Barra superior móvil removida: el total de la mesa se muestra en la vista de mis pedidos -->
             <div class="space-y-6 lg:col-span-2">
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
                     <div class="mb-4 flex flex-wrap items-center gap-2">
