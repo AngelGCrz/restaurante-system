@@ -18,7 +18,7 @@
                 initialComment: @json(old('comment', '')),
             })'
             x-init="init()"
-            {{-- x-on:submit="clearDraft()" --}}
+            x-on:submit="localStorage.removeItem('order_form_draft'); sessionStorage.setItem('order_just_submitted', '1')"
         >
             @csrf
 
@@ -244,45 +244,45 @@
                 currentCategory: 1,
                 selectedMap: {},
                 init() {
-                    const saved = this.loadDraft();
-                    if (saved) {
-                        this.serviceType = saved.serviceType || this.serviceType;
-                        this.selectedMap = saved.selectedMap || {};
-                        this.customerName = saved.customerName || '';
-                        this.comment = saved.comment || '';
-                        if (!this.selectedTables.length && Array.isArray(saved.selectedTables)) {
-                            this.selectedTables = saved.selectedTables;
-                        }
+                    // Si acaba de registrar un pedido, no cargar el draft
+                if (sessionStorage.getItem('order_just_submitted')) {
+                    sessionStorage.removeItem('order_just_submitted');
+                    this.saveDraft(); // guarda estado vacío
+                    return;
+                }
+            
+                const saved = this.loadDraft();
+                if (saved) {
+                    this.serviceType = saved.serviceType || this.serviceType;
+                    this.selectedMap = saved.selectedMap || {};
+                    this.customerName = saved.customerName || '';
+                    this.comment = saved.comment || '';
+                    if (!this.selectedTables.length && Array.isArray(saved.selectedTables)) {
+                        this.selectedTables = saved.selectedTables;
                     }
-
-                    if (this.serviceType !== 'mesa') {
-                        this.selectedTables = [];
+                }
+            
+                if (this.serviceType !== 'mesa') {
+                    this.selectedTables = [];
+                }
+            
+                const ids = Object.keys(this.selectedMap || {});
+                let changed = false;
+                ids.forEach((id) => {
+                    const item = this.selectedMap[id];
+                    const product = this.products.find(p => p.id == id);
+                    if (!product) {
+                        delete this.selectedMap[id];
+                        changed = true;
+                        return;
                     }
-
-                    // Clean stale items from saved draft: remove if product no longer present or stock insufficient
-                    const ids = Object.keys(this.selectedMap || {});
-                    let changed = false;
-                    ids.forEach((id) => {
-                        const item = this.selectedMap[id];
-                        const product = this.products.find(p => p.id == id);
-                        // if product not found (e.g., filtered out because sold out) or product stock insufficient now, remove
-                        if (!product) {
-                            delete this.selectedMap[id];
-                            changed = true;
-                            return;
-                        }
-
-                        if ((product.sold_out) || (!product.allow_negative && typeof product.stock === 'number' && item.quantity > product.stock)) {
-                            delete this.selectedMap[id];
-                            changed = true;
-                        }
-                    });
-
-                    if (changed) {
-                        this.saveDraft();
-                    } else {
-                        this.saveDraft();
+                    if ((product.sold_out) || (!product.allow_negative && typeof product.stock === 'number' && item.quantity > product.stock)) {
+                        delete this.selectedMap[id];
+                        changed = true;
                     }
+                });
+            
+                this.saveDraft();
                 },
                 loadDraft() {
                     try {
@@ -429,10 +429,11 @@
             };
         }
     </script>
-    @if(session('success'))
-    <script>
-        localStorage.removeItem('order_form_draft');
-    </script>
-@endif
+    {{-- Limpiar draft ANTES de que Alpine inicialice --}}
+{{-- @if(session('success')) --}}
+{{-- <script>
+    localStorage.removeItem('order_form_draft');
+</script>
+@endif --}}
 
 </x-layouts.app>
