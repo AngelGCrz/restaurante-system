@@ -77,8 +77,21 @@
                         <p class="text-sm text-gray-500 dark:text-gray-400">Total Mesa</p>
                         <p class="text-3xl font-bold {{ $hasPending ? 'text-yellow-500' : ($allCancelled ? 'text-red-500' : 'text-green-600') }}">
 
+                        @php
+                            // Calcular total cobrable de la mesa:
+                            // - Solo sumar el total de los pedidos padre que estén PENDIENTES (evita cobrar padres anulados)
+                            // - Añadir siempre el total de las órdenes hijas que estén pendientes
+                            $tableTotal = $tableOrders->whereNull('origin_order_id')->reduce(function($carry, $o) {
+                                $parentItemsTotal = ($o->status === 'pendiente')
+                                    ? (($o->items ?? collect())->sum(function($it) { return ($it->price * $it->quantity); }))
+                                    : 0;
+                                $childrenPendingTotal = ($o->childOrders ?? collect())->where('status', 'pendiente')->sum('total');
+                                return $carry + $parentItemsTotal + $childrenPendingTotal;
+                            }, 0);
+                        @endphp
+
                         @if($hasPending)
-                            <button onclick="openPayTableModal('{{ $tableKey }}', {{ $tableOrders->where('status','pendiente')->sum('total') }})"
+                        <button onclick="openPayTableModal('{{ $tableKey }}', {{ $tableTotal }})"
                                 class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold transition">
                                 💳 Cobrar Mesa Completa
                             </button>
@@ -101,7 +114,14 @@
                         @foreach($tableOrders->sortByDesc('created_at') as $order)
                             <tr class="{{ $order->status !== 'pendiente' ? 'opacity-50' : '' }}">
                                 <td class="py-3 dark:text-white">#{{ $order->id }}</td>
-                                <td class="py-3 dark:text-white">{{ $order->customer_name ?? 'N/A' }}</td>
+                                <td class="py-3 dark:text-white flex items-center gap-2">
+                                    <span>{{ $order->customer_name ?? 'N/A' }}</span>
+                                    @if($order->type === 'llevar' && !empty($order->table_numbers))
+                                        <span class="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200 px-2 py-1 rounded-full">
+                                            🥡 Para llevar (Mesa {{ implode('+', $order->table_numbers) }})
+                                        </span>
+                                    @endif
+                                </td>
                                 <td class="py-3 dark:text-white">S/ {{ number_format($order->total, 2) }}</td>
                                 <td class="py-3">
                                     <span class="rounded-full px-2 py-1 text-xs

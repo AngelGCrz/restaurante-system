@@ -14,6 +14,9 @@
                     <p class="text-gray-400 text-sm mt-1">
                         Mesa: <span class="text-white font-semibold">{{ $order->table_label }}</span>
                     </p>
+                        <div x-show="takeaway" class="mt-2">
+                            <span class="text-sm bg-indigo-600 px-2 py-1 rounded-full font-semibold">🥡 Para llevar — Mesa {{ $order->table_label }}</span>
+                        </div>
                     @if($order->customer_name)
                         <p class="text-gray-400 text-sm">
                             Cliente: <span class="text-white">{{ $order->customer_name }}</span>
@@ -137,11 +140,25 @@
                     </div>
                 </template>
 
-                {{-- Botón flotante --}}
-                <button type="submit"
-                    class="fixed bottom-6 right-6 bg-green-600 hover:bg-green-700 px-6 py-3 rounded-2xl text-white font-bold shadow-xl">
-                    Agregar al Pedido
-                </button>
+                {{-- Toggle Para llevar + Botón flotante --}}
+                <div class="fixed bottom-6 right-6 flex items-center gap-3">
+                    <div class="flex items-center gap-2 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2">
+                        <label class="text-sm">Para llevar</label>
+                        <button type="button"
+                                @click="takeaway = !takeaway"
+                                :class="takeaway ? 'bg-green-600' : 'bg-gray-700'"
+                                class="px-3 py-1 rounded-lg text-sm">
+                            <span x-text="takeaway ? 'Sí' : 'No'"></span>
+                        </button>
+                    </div>
+
+                    <input type="hidden" name="takeaway" :value="takeaway ? 1 : 0">
+
+                    <button type="submit"
+                        class="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-2xl text-white font-bold shadow-xl">
+                        Agregar al Pedido
+                    </button>
+                </div>
 
             </div>
         </form>
@@ -154,6 +171,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('orderManager', () => ({
         activeCategory: {{ $categories->first()?->id ?? 0 }},
         items: [],
+        takeaway: {{ $order->type === 'llevar' ? 'true' : 'false' }},
 
         increase(id, name, price) {
             // ✅ Forzar que price sea número flotante

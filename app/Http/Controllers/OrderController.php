@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\DB;
 class OrderController extends Controller
 {
     public function index()
-{
-    $query = Order::with(['user'])->orderBy('created_at', 'desc');
+    {
+        $query = Order::with(['user', 'items', 'childOrders.items'])->orderBy('created_at', 'desc');
 
     if (auth()->check() && auth()->user()->role->name === 'cajero') {
         $query->orderByRaw("FIELD(status, 'pendiente', 'pagado', 'cancelado')");
@@ -25,11 +25,37 @@ class OrderController extends Controller
 
     if (auth()->check() && auth()->user()->role->name === 'cajero') {
         
-        // 1️⃣ Agrupar todos los pedidos por mesa
-        $grouped = $orders->groupBy(function($order) {
-            if ($order->type === 'llevar') return 'llevar';
-            return implode(',', $order->table_numbers ?? []);
-        });
+        // 1️⃣ Agrupar todos los pedidos por mesa.
+        // Los pedidos de tipo 'llevar' que además tengan `table_numbers`
+        // deben aparecer tanto en el bloque 'llevar' como en el bloque de la(s) mesa(s).
+        $grouped = collect();
+
+        foreach ($orders as $order) {
+            $keys = [];
+
+            // Si el pedido tiene mesas asociadas, agrupar SOLO por la(s) mesa(s).
+            // Esto evita mostrar dos veces un pedido 'llevar' que además tenga mesas.
+            $tables = $order->table_numbers ?? [];
+            if (!empty($tables)) {
+                $tableKey = implode(',', $tables);
+                $keys[] = $tableKey;
+            } else {
+                // Si no tiene mesas y es 'llevar', agrupar en el bloque 'llevar'
+                if ($order->type === 'llevar') {
+                    $keys[] = 'llevar';
+                } else {
+                    // Pedidos sin mesa y no 'llevar' (edge-case)
+                    $keys[] = '';
+                }
+            }
+
+            foreach (array_unique($keys) as $key) {
+                if (! $grouped->has($key)) {
+                    $grouped->put($key, collect());
+                }
+                $grouped->get($key)->push($order);
+            }
+        }
 
         // 2️⃣ Separar por sesión dentro de cada mesa
         $ordersByTable = collect();
@@ -106,22 +132,33 @@ class OrderController extends Controller
      */
     public function mozoIndex()
 { 
-    $orders = Order::with('user')
-        ->where('user_id', auth()->id())
-        ->where('status', 'pendiente') // Solo mostrar pedidos activos
-        ->orderBy('created_at', 'desc')
-        ->get();
+        // Solo pedidos creados por el mozo y que sean pedidos padre (sin origin)
+        $orders = Order::with(['user', 'items', 'childOrders.items'])
+            ->where('user_id', auth()->id())
+            ->where('status', 'pendiente') // Solo mostrar pedidos activos
+            ->whereNull('origin_order_id') // Mostrar únicamente pedidos padre
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-    // 📊 Agrupar pedidos por mesa
-    $ordersByTable = $orders->groupBy(function($order) {
-        if ($order->type === 'llevar') {
-            return 'llevar'; // Agrupar todos los "para llevar" juntos
-        }
-        // Convertir el JSON de mesas a string para agrupar
-        return implode(',', $order->table_numbers ?? []);
-    });
+        // Agrupar pedidos por mesa o en 'llevar' cuando no tengan mesas
+        $ordersByTable = $orders->groupBy(function($order) {
+            $tables = $order->table_numbers ?? [];
 
-    return view('orders.mozo-index', compact('ordersByTable'));
+            // Si es 'llevar' y NO tiene mesas, va al bloque 'llevar'
+            if ($order->type === 'llevar' && empty($tables)) {
+                return 'llevar';
+            }
+
+            // Si tiene mesas, agrupar por esas mesas (como '1' o '1,2')
+            if (!empty($tables)) {
+                return implode(',', $tables);
+            }
+
+            // Fallback para pedidos sin mesa y no 'llevar'
+            return '';
+        });
+
+        return view('orders.mozo-index', compact('ordersByTable'));
 }
 
 
@@ -201,19 +238,19 @@ class OrderController extends Controller
         $stockEnabled = (bool) Setting::getValue('stock_enabled', false);
         $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
 
-        try {
-            $order = DB::transaction(function () use ($order, $validated, $stockEnabled, $stockAllowNegative) {
-    
-    $childOrder = Order::create([
-        'user_id' => auth()->id(),
-        'customer_name' => $order->customer_name,
-        'comment' => 'Agregado a la orden #' . $order->id,
-        'type' => $order->type,
-        'table_numbers' => $order->table_numbers,
-        'total' => 0,
-        'status' => 'pendiente',
-        'origin_order_id' => $order->id,
-    ]);
+            try {
+                $order = DB::transaction(function () use ($order, $validated, $stockEnabled, $stockAllowNegative, $request) {
+
+        $childOrder = Order::create([
+            'user_id' => auth()->id(),
+            'customer_name' => $order->customer_name,
+            'comment' => 'Agregado a la orden #' . $order->id,
+            'type' => $request->input('takeaway') ? 'llevar' : $order->type,
+            'table_numbers' => $order->table_numbers,
+            'total' => 0,
+            'status' => 'pendiente',
+            'origin_order_id' => $order->id,
+        ]);
 
     $childTotal = 0; // ✅ Solo cuenta los items nuevos
 
@@ -254,9 +291,12 @@ class OrderController extends Controller
     // ✅ El hijo solo tiene su propio total (S/6.50)
     $childOrder->update(['total' => $childTotal]);
     
-    // ✅ El padre se incrementa correctamente
+    // ✅ solo incrementar si la hija es del mismo tipo que el padre
+    if ($childOrder->type === $order->type) {
     $order->increment('total', $childTotal);
-
+}
+    // Devolver el pedido padre para que la variable $order fuera de la
+    // transacción no sea nula (evita "Attempt to read property 'id' on null").
     return $order;
 });
 
@@ -277,6 +317,12 @@ class OrderController extends Controller
             if ($childOrder) {
                 $msg .= ' Se creó la orden #' . $childOrder->id . ' para cocina.';
             }
+
+            // Si se creó una orden hija, mostrar su detalle; sino mostrar la orden padre
+            if ($childOrder) {
+                return redirect()->route('mozo.orders.show', $childOrder)->with('success', $msg);
+            }
+
             return redirect()->route('mozo.orders.show', $order)->with('success', $msg);
 
         } catch (\RuntimeException $e) {
@@ -562,6 +608,23 @@ class OrderController extends Controller
         }
 
         $order->update(['status' => 'cancelado']);
+        // Si la orden cancelada es una ORDEN PADRE, promover una hija pendiente (si existe)
+        // Esto mantiene la mesa visible en la vista de mozo (las hijas no se listan como padres).
+        if (is_null($order->origin_order_id)) {
+            $pendingChildren = $order->childOrders()->where('status', 'pendiente')->get();
+            foreach ($pendingChildren as $pendingChild) {
+                $pendingChild->origin_order_id = null;
+                // Asignar la orden promovida al mismo mozo que era responsable del padre
+                $pendingChild->user_id = $order->user_id;
+                $pendingChild->save();
+            }
+        }
+
+        // ✅ Si se está cancelando una orden HIJA, decrementar el total del padre
+        if ($order->origin_order_id && $order->type !== 'llevar') {
+            $parent = Order::find($order->origin_order_id);
+            $parent?->decrement('total', $order->total);
+        }
 
         return redirect()->route('orders.show', $order)->with('success', 'Pedido cancelado.');
     }

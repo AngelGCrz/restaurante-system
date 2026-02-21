@@ -3,6 +3,9 @@
         <div class="flex items-center gap-4">
             <flux:button variant="subtle" icon="arrow-left" href="{{ auth()->user()->role->name === 'mozo' ? route('mozo.orders.create') : route('orders.index') }}" />
             <h1 class="text-2xl font-bold">Detalle de Pedido #{{ $order->id }}</h1>
+            @if($order->type === 'llevar')
+                <span class="ml-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">🥡 Para llevar</span>
+            @endif
         </div>
 
         @if(session('success'))
@@ -73,6 +76,12 @@
                             <span class="text-zinc-500">Servicio:</span>
                             <span class="font-medium">{{ $order->table_label }}</span>
                         </div>
+                        @if($order->type === 'llevar')
+                            <div class="flex justify-between">
+                                <span class="text-zinc-500">Para llevar:</span>
+                                <span class="font-medium text-indigo-600">🥡 Sí</span>
+                            </div>
+                        @endif
                         <div class="flex justify-between">
                             <span class="text-zinc-500">Atendido por:</span>
                             <span class="font-medium">{{ $order->user->name }}</span>
@@ -119,7 +128,7 @@
                             </form>
                         </div>
                     @endif
-                    @if($order->status === 'pendiente' && auth()->user()->role->name === 'mozo')
+                    @if($order->status === 'pendiente' && auth()->user()->role->name === 'mozo' && is_null($order->origin_order_id))
                         <div class="mt-6">
                             <flux:button href="{{ route('mozo.orders.add-items', $order) }}" variant="primary" class="w-full">Agregar Productos</flux:button>
                         </div>
