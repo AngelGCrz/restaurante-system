@@ -68,10 +68,11 @@ S/ {{ number_format($totalMesa, 2) }}
                 {{ ucfirst($order->status) }}
             </span>
         </td>
-        <td class="py-3 flex items-center gap-2">
+            <td class="py-3 flex items-center gap-2">
             <flux:button size="sm" variant="subtle" href="{{ route('mozo.orders.show', $order) }}">Ver</flux:button>
             @if($order->status === 'pendiente')
                 <flux:button size="sm" variant="primary" href="{{ route('mozo.orders.add-items', $order) }}">+ Agregar</flux:button>
+                <flux:button size="sm" variant="outline" href="{{ route('mozo.orders.change-table', $order) }}">Cambiar Mesa</flux:button>
             @endif
         </td>
     </tr>

@@ -211,6 +211,85 @@ class OrderController extends Controller
     }
 
     /**
+     * Mostrar formulario para cambiar la(s) mesa(s) de un pedido (mozo).
+     */
+    public function changeTableForm(Order $order)
+    {
+        if (! (auth()->check() && (auth()->user()->role->name === 'mozo' || auth()->id() === $order->user_id))) {
+            abort(403);
+        }
+
+        if ($order->status !== 'pendiente') {
+            return redirect()->route('mozo.orders.index')->withErrors(['order' => 'Solo se pueden mover pedidos pendientes.']);
+        }
+
+        $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
+        $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
+
+        $busyTables = Order::where('status', 'pendiente')
+            ->where('id', '!=', $order->id)
+            ->pluck('table_numbers')
+            ->flatten()
+            ->map(fn ($t) => (int) $t)
+            ->filter(fn ($t) => $t > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $availableTables = array_values(array_filter($tableNumbers, fn($t) => !in_array($t, $busyTables)));
+
+        return view('orders.change-table', compact('order', 'tableNumbers', 'availableTables', 'busyTables', 'tableCount'));
+    }
+
+    /**
+     * Procesar el traslado de mesa para un pedido.
+     */
+    public function changeTableStore(Request $request, Order $order)
+    {
+        if (! (auth()->check() && (auth()->user()->role->name === 'mozo' || auth()->id() === $order->user_id))) {
+            abort(403);
+        }
+
+        if ($order->status !== 'pendiente') {
+            return redirect()->route('mozo.orders.index')->withErrors(['order' => 'Solo se pueden mover pedidos pendientes.']);
+        }
+
+        $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
+
+        $validated = $request->validate([
+            'tables' => 'required|array|min:1',
+            'tables.*' => 'integer|min:1|max:' . max($tableCount, 1),
+        ]);
+
+        $selected = collect($validated['tables'])->map(fn($t) => (int) $t)->filter(fn($t) => $t > 0)->unique()->values()->all();
+
+        $busyTables = Order::where('status', 'pendiente')
+            ->where('id', '!=', $order->id)
+            ->pluck('table_numbers')
+            ->flatten()
+            ->map(fn ($t) => (int) $t)
+            ->filter(fn ($t) => $t > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $conflicts = array_values(array_intersect($busyTables, $selected));
+        if (!empty($conflicts)) {
+            return back()->withErrors(['tables' => 'Las mesas ' . implode(' + ', $conflicts) . ' ya están ocupadas por otro mozo.'])->withInput();
+        }
+
+        DB::transaction(function() use ($order, $selected) {
+            $order->table_numbers = $selected;
+            $order->save();
+
+            // Actualizar también las órdenes hijas para mantener consistencia
+            $order->childOrders()->update(['table_numbers' => $selected]);
+        });
+
+        return redirect()->route('mozo.orders.index')->with('success', 'Mesa cambiada correctamente.');
+    }
+
+    /**
      * Procesar y guardar productos añadidos al pedido por el mozo.
      */
     public function addItemsStore(Request $request, Order $order)

@@ -84,6 +84,9 @@ Route::get('/ping', function () {
         Route::get('orders/pending-by-table/{table}', [OrderController::class, 'pendingByTable'])->name('mozo.orders.pending-by-table');
         Route::get('orders/{order}/add-items', [OrderController::class, 'addItemsForm'])->name('mozo.orders.add-items');
         Route::post('orders/{order}/add-items', [OrderController::class, 'addItemsStore'])->name('mozo.orders.add-items.store');
+        // Cambiar mesa: formulario y acción para trasladar un pedido a otra mesa libre
+        Route::get('orders/{order}/change-table', [OrderController::class, 'changeTableForm'])->name('mozo.orders.change-table');
+        Route::post('orders/{order}/change-table', [OrderController::class, 'changeTableStore'])->name('mozo.orders.change-table.update');
         Route::get('orders/{order}', [OrderController::class, 'show'])->name('mozo.orders.show');
         Route::get('tables/select', [OrderController::class, 'selectTables'])->name('mozo.tables.select');        
         
