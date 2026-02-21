@@ -93,6 +93,19 @@
         console.log("Respuesta:", JSON.parse(e.data));
         };
         
+        // Ocultar la tarjeta inmediatamente
+        orderCard.style.transition = 'opacity 0.4s ease';
+        orderCard.style.opacity = '0';
+        setTimeout(() => {
+            orderCard.style.display = 'none';
+        }, 400);
+
+        // Persistir en localStorage para que no reaparezca al recargar
+        const printed = JSON.parse(localStorage.getItem('kitchen_printed_orders') || '[]');
+        if (!printed.includes(orderId)) {
+            printed.push(orderId);
+            localStorage.setItem('kitchen_printed_orders', JSON.stringify(printed));
+        }
         
     //     const orderCard = button.closest('.order-card');
     //     const orderId = orderCard?.dataset?.orderId;
@@ -161,6 +174,14 @@
             
         }
 }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const printed = JSON.parse(localStorage.getItem('kitchen_printed_orders') || '[]');
+            printed.forEach(id => {
+                const card = document.querySelector(`.order-card[data-order-id="${id}"]`);
+                if (card) card.style.display = 'none';
+            });
+        });
 </script>
 
     {{-- <script>
