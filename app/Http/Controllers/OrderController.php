@@ -708,6 +708,26 @@ class OrderController extends Controller
         return redirect()->route('orders.show', $order)->with('success', 'Pedido cancelado.');
     }
 
+    /**
+     * Endpoint JSON para polling de caja.
+     * Devuelve un hash del estado actual de pedidos pendientes.
+     */
+    public function pollCaja()
+    {
+        $orders = Order::where('status', 'pendiente')
+            ->orderBy('created_at', 'desc')
+            ->get(['id', 'status', 'total', 'updated_at']);
+
+        $hash = md5(
+            $orders->map(fn($o) => $o->id . $o->status . $o->updated_at)->join(',')
+        );
+
+        return response()->json([
+            'hash'          => $hash,
+            'pending_count' => $orders->count(),
+        ]);
+    }
+
     public function show(Order $order)
     {
         $order->load('items.product');
