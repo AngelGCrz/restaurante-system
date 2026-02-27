@@ -46,7 +46,8 @@
 
                 @if(auth()->user()->role->name === 'cajero')
                     <flux:navlist.group heading="Caja" class="grid">
-                        <flux:navlist.item icon="banknotes" :href="route('orders.index')" :current="request()->routeIs('orders.*')" wire:navigate>Pedidos</flux:navlist.item>
+                        <flux:navlist.item icon="banknotes" :href="route('orders.index')" :current="request()->routeIs('orders.index')" wire:navigate>Pedidos</flux:navlist.item>
+                        <flux:navlist.item icon="list-bullet" :href="route('orders.payments')" :current="request()->routeIs('orders.payments')" wire:navigate>Lista de Pagos</flux:navlist.item>
                     </flux:navlist.group>
                 @endif
             </flux:navlist>

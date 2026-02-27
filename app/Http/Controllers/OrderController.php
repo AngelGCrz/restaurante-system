@@ -693,39 +693,91 @@ class OrderController extends Controller
     public function cancel(Request $request, Order $order)
     {
         if ($order->status === 'cancelado') {
-            return redirect()->route('orders.show', $order)->with('info', 'El pedido ya está cancelado.');
+            return redirect()->back()->with('info', 'El pedido ya está cancelado.');
         }
 
         if ($order->status === 'pagado') {
-            return redirect()->route('orders.show', $order)->withErrors(['order' => 'No se puede cancelar un pedido ya cobrado.']);
+            return redirect()->back()->withErrors(['order' => 'No se puede cancelar un pedido ya cobrado.']);
         }
 
-        $order->update(['status' => 'cancelado']);
+        $request->validate([
+            'cancel_reason' => 'nullable|string|max:255',
+        ]);
+
+        $order->update([
+            'status'        => 'cancelado',
+            'cancel_reason' => $request->input('cancel_reason') ?: null,
+        ]);
+
         // Si la orden cancelada es una ORDEN PADRE, promover una hija pendiente (si existe)
-        // Esto mantiene la mesa visible en la vista de mozo (las hijas no se listan como padres).
         if (is_null($order->origin_order_id)) {
             $pendingChildren = $order->childOrders()->where('status', 'pendiente')->get();
             foreach ($pendingChildren as $pendingChild) {
                 $pendingChild->origin_order_id = null;
-                // Asignar la orden promovida al mismo mozo que era responsable del padre
                 $pendingChild->user_id = $order->user_id;
                 $pendingChild->save();
             }
         }
 
-        // ✅ Si se está cancelando una orden HIJA, decrementar el total del padre
+        // Si se está cancelando una orden HIJA, decrementar el total del padre
         if ($order->origin_order_id && $order->type !== 'llevar') {
             $parent = Order::find($order->origin_order_id);
             $parent?->decrement('total', $order->total);
         }
 
-        return redirect()->route('orders.show', $order)->with('success', 'Pedido cancelado.');
+        return redirect()->back()->with('success', 'Pedido #' . $order->id . ' cancelado.');
     }
 
     /**
      * Endpoint JSON para polling de caja.
      * Devuelve un hash del estado actual de pedidos pendientes.
      */
+    /**
+     * Lista de pagos: pedidos cobrados y cancelados con filtros.
+     */
+    public function payments(Request $request)
+    {
+        $status  = $request->input('status', 'all');   // all | pagado | cancelado
+        $from    = $request->input('from');
+        $to      = $request->input('to');
+        $search  = $request->input('search');
+
+        $query = Order::with(['items.product', 'user'])
+            ->whereIn('status', ['pagado', 'cancelado'])
+            ->orderBy('updated_at', 'desc');
+
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        if ($from) {
+            $query->whereDate('updated_at', '>=', $from);
+        }
+
+        if ($to) {
+            $query->whereDate('updated_at', '<=', $to);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('customer_name', 'like', "%{$search}%")
+                  ->orWhere('id', 'like', "%{$search}%");
+            });
+        }
+
+        $orders = $query->paginate(20)->withQueryString();
+
+        $totalPagado    = Order::where('status', 'pagado')->sum('total');
+        $totalCancelado = Order::where('status', 'cancelado')->sum('total');
+        $countPagado    = Order::where('status', 'pagado')->count();
+        $countCancelado = Order::where('status', 'cancelado')->count();
+
+        return view('orders.payments', compact(
+            'orders', 'status', 'from', 'to', 'search',
+            'totalPagado', 'totalCancelado', 'countPagado', 'countCancelado'
+        ));
+    }
+
     public function pollCaja()
     {
         $orders = Order::where('status', 'pendiente')
