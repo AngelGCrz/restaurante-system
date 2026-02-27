@@ -55,7 +55,7 @@
                     <h2 class="mb-4 text-lg font-semibold">Productos Disponibles</h2>
 
 {{-- Vista especial cuando está seleccionado ENTRADA (id=4): muestra entradas arriba y segundos abajo --}}
-<template x-if="currentCategory === 1 || currentCategory === 2 || currentCategory === 5">
+<template x-if="currentCategory === 1 || currentCategory === 2 || currentCategory === 5 || currentCategory === 6">
     <div>
         {{-- ENTRADAS --}}
         <p class="text-xs font-semibold uppercase tracking-widest text-red-500 mb-2">── Entradas ──</p>
@@ -111,7 +111,7 @@
 </template>
 
 {{-- Vista normal para todas las demás categorías (MENU, BEBIDAS, EXTRAS, PORCIONES) --}}
-<template x-if="currentCategory !== 1 && currentCategory !== 2 && currentCategory !== 5">
+<template x-if="currentCategory !== 1 && currentCategory !== 2 && currentCategory !== 5 && currentCategory !== 6">
     <div>
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             <template x-for="product in filteredProducts" :key="product.id">
