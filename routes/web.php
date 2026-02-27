@@ -56,6 +56,7 @@ Route::get('/ping', function () {
     Route::middleware(['role:cajero'])->group(function () {
         // ⚠️ Rutas específicas ANTES del resource para evitar conflicto con {order}
         Route::get('/orders/poll-caja', [OrderController::class, 'pollCaja'])->name('orders.poll-caja');
+        Route::get('/orders/payments', [OrderController::class, 'payments'])->name('orders.payments');
         Route::post('/orders/pay-table', [OrderController::class, 'payTable'])->name('orders.pay-table');
         Route::resource('orders', OrderController::class)->only(['index', 'show']);
         Route::post('orders/{order}/pay', [OrderController::class, 'pay'])->name('orders.pay');
