@@ -2,7 +2,17 @@
     <div class="flex h-full w-full flex-1 flex-col gap-4 p-4">
         <div class="flex items-center justify-between">
             <h1 class="text-2xl font-bold">Listado de Pedidos (Caja)</h1>
+            <div class="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                <span id="caja-poll-dot" class="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                <span id="caja-poll-txt">En vivo</span>
+            </div>
         </div>
+
+    {{-- Toast de nuevos pedidos --}}
+    <div id="caja-toast"
+         class="hidden fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl bg-blue-600 text-white px-5 py-4 shadow-xl text-sm font-semibold">
+        <span>🔔 Nuevos pedidos</span>
+    </div>
 
         @if(session('success'))
             <div class="rounded-xl bg-green-100 border border-green-300 text-green-800 p-4 dark:bg-green-900 dark:border-green-700 dark:text-green-200">
@@ -208,6 +218,68 @@
         document.getElementById('payTableModal').addEventListener('click', function(e) {
             if (e.target === this) closePayTableModal();
         });
+
+        // =============================================
+        // POLLING EN TIEMPO REAL — CAJA
+        // =============================================
+        const POLL_INTERVAL = 5000;
+        let lastHash = null;
+        let isModalOpen = false;
+
+        // Detectar si el modal está abierto para no interrumpir cobros en curso
+        document.getElementById('payTableModal').addEventListener('click', () => isModalOpen = true);
+
+        async function pollCaja() {
+            // No recargar si el modal de cobro está abierto
+            if (document.getElementById('payTableModal').classList.contains('hidden') === false) return;
+
+            try {
+                const resp = await fetch('/orders/poll-caja', { credentials: 'same-origin' });
+                if (!resp.ok) return;
+                const data = await resp.json();
+
+                if (lastHash === null) {
+                    lastHash = data.hash;
+                    updateIndicator('online');
+                    return;
+                }
+
+                if (data.hash !== lastHash) {
+                    lastHash = data.hash;
+                    showCajaToast('🔔 Nuevos pedidos — recargando...');
+                    setTimeout(() => location.reload(), 1200);
+                }
+
+                updateIndicator('online');
+            } catch (err) {
+                updateIndicator('offline');
+            }
+        }
+
+        function updateIndicator(state) {
+            const dot = document.getElementById('caja-poll-dot');
+            const txt = document.getElementById('caja-poll-txt');
+            if (!dot) return;
+            if (state === 'online') {
+                dot.className = 'inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse';
+                txt.textContent = 'En vivo';
+            } else {
+                dot.className = 'inline-block w-2 h-2 rounded-full bg-red-500';
+                txt.textContent = 'Sin conexión';
+            }
+        }
+
+        let cajaToastTimer;
+        function showCajaToast(msg) {
+            const t = document.getElementById('caja-toast');
+            if (!t) return;
+            t.querySelector('span').textContent = msg;
+            t.classList.remove('hidden');
+            clearTimeout(cajaToastTimer);
+            cajaToastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
+        }
+
+        setInterval(pollCaja, POLL_INTERVAL);
     </script>
     @endpush
 </x-layouts.app>

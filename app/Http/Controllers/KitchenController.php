@@ -23,6 +23,38 @@ class KitchenController extends Controller
         return view('kitchen.index', compact('orders'));
     }
 
+    /**
+     * Endpoint JSON para polling de cocina.
+     * Devuelve los pedidos pendientes con sus datos completos.
+     */
+    public function poll()
+    {
+        $orders = Order::where('status', 'pendiente')
+            ->with('items.product')
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id'              => $order->id,
+                    'created_at'      => $order->created_at->format('H:i'),
+                    'customer_name'   => $order->customer_name ?? 'N/A',
+                    'table_label'     => $order->table_label,
+                    'comment'         => $order->comment,
+                    'origin_order_id' => $order->origin_order_id,
+                    'items'           => $order->items->map(fn($item) => [
+                        'quantity'     => $item->quantity,
+                        'product_name' => $item->product->name ?? '?',
+                        'comment'      => $item->comment,
+                    ]),
+                ];
+            });
+
+        return response()->json([
+            'orders' => $orders,
+            'hash'   => md5($orders->pluck('id')->sort()->values()->join(',')),
+        ]);
+    }
+
     public function printOrder(Request $request, Order $order)
 {
     $order->load('items.product', 'user');
