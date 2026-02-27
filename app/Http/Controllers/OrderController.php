@@ -434,7 +434,8 @@ class OrderController extends Controller
                 'allow_negative' => $stockAllowNegative,
             ];
         })->values();
-        $categories = Category::select('id', 'name')->orderBy('name')->get();
+        $categories = Category::select('id', 'name')->orderByRaw("FIELD(id, 4, 1, 2, 3, 5)")->get();
+        // $categories = Category::select('id', 'name')->orderBy('name')->get();
         $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
         $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
 
@@ -495,7 +496,7 @@ class OrderController extends Controller
         'items' => $filteredItems,
         'tables' => $isMesa ? $selectedTables : [],
     ])->validate([
-        'customer_name' => 'nullable|string',
+        'customer_name' => $isMesa ? 'nullable|string' : 'required|string',
         'comment' => 'nullable|string',
         'type' => 'required|in:mesa,llevar',
         'tables' => $isMesa ? 'required|array|min:1' : 'nullable|array',

@@ -18,7 +18,15 @@
                 initialComment: @json(old('comment', '')),
             })'
             x-init="init()"
-            x-on:submit="localStorage.removeItem('order_form_draft'); sessionStorage.setItem('order_just_submitted', '1')"
+            x-on:submit.prevent="
+            if (serviceType === 'llevar' && customerName.trim() === '') {
+                document.querySelector('[name=customer_name]').focus();
+                return;
+            }
+            localStorage.removeItem('order_form_draft');
+            sessionStorage.setItem('order_just_submitted', '1');
+            $el.submit();
+            "
         >
             @csrf
 
@@ -39,34 +47,91 @@
                     <div class="mb-4 flex flex-wrap items-center gap-2">
                         {{-- <button type="button" class="rounded-full border px-3 py-1 text-sm font-medium transition hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700" :class="!currentCategory ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black' : ''" @click="currentCategory = null">Todas</button> --}}
                         <template x-for="cat in categories" :key="cat.id">
-                            <button type="button" class="rounded-full border px-3 py-1 text-sm font-medium transition hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700" :class="currentCategory === cat.id ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black' : ''" @click="currentCategory = cat.id" x-text="cat.name"></button>
+                            <button x-show="cat.id !== 4" type="button" class="rounded-full border px-3 py-1 text-sm font-medium transition hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-700" :class="currentCategory === cat.id ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black' : ''" @click="currentCategory = cat.id" x-text="cat.name"></button>
                         </template>
                     </div>
 
                     <h2 class="mb-4 text-lg font-semibold">Productos Disponibles</h2>
-                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                        <template x-for="product in filteredProducts" :key="product.id">
-                            <button
-                type="button"
-                :disabled="product.sold_out"
-                :class="product.sold_out
-                    ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
-                    : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
-                @click="addProduct(product)"
-            >
 
-        
-                                <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
-                                    <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
-                                </div>
-                                <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
-                                <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
-                                <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
-                                <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
-                            </button>
-                        </template>
-                        <p x-show="!filteredProducts.length" class="col-span-full text-sm text-zinc-500" x-cloak>No hay productos en esta categoría.</p>
+{{-- Vista especial cuando está seleccionado ENTRADA (id=4): muestra entradas arriba y segundos abajo --}}
+<template x-if="currentCategory === 1 || currentCategory === 2 || currentCategory === 5">
+    <div>
+        {{-- ENTRADAS --}}
+        <p class="text-xs font-semibold uppercase tracking-widest text-red-500 mb-2">── Entradas ──</p>
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 mb-6">
+            <template x-for="product in products.filter(p => p.category_id == 4)" :key="product.id">
+                <button
+                    type="button"
+                    :disabled="product.sold_out"
+                    :class="product.sold_out
+                        ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
+                        : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
+                    @click="addProduct(product)"
+                >
+                    <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
+                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
                     </div>
+                    <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
+                    <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
+                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
+                    <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
+                </button>
+            </template>
+        </div>
+
+        {{-- SEGUNDOS --}}
+        <p class="text-xs font-semibold uppercase tracking-widest text-red-500 mb-2" x-text="currentCategory === 1 ? '── Segundos ──' : currentCategory === 2 ? '── Extras ──' : '── Porciones ──'"></p>
+<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+    <template x-for="product in products.filter(p => currentCategory === 1 ? p.category_id == 1 : p.category_id == currentCategory)" :key="product.id">
+                <button
+                    type="button"
+                    :disabled="product.sold_out"
+                    :class="product.sold_out
+                        ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
+                        : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
+                    @click="addProduct(product)"
+                >
+                    <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
+                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
+                    </div>
+                    <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
+                    <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
+                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
+                    <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
+                </button>
+            </template>
+        </div>
+    </div>
+</template>
+
+{{-- Vista normal para todas las demás categorías (MENU, BEBIDAS, EXTRAS, PORCIONES) --}}
+<template x-if="currentCategory !== 1 && currentCategory !== 2 && currentCategory !== 5">
+    <div>
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            <template x-for="product in filteredProducts" :key="product.id">
+                <button
+                    type="button"
+                    :disabled="product.sold_out"
+                    :class="product.sold_out
+                        ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
+                        : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
+                    @click="addProduct(product)"
+                >
+                    <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
+                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
+                    </div>
+                    <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
+                    <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
+                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
+                    <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
+                </button>
+            </template>
+            <p x-show="!filteredProducts.length" class="col-span-full text-sm text-zinc-500" x-cloak>No hay productos en esta categoría.</p>
+        </div>
+    </div>
+</template>
+                    
+
                 </div>
             </div>
 
@@ -110,9 +175,28 @@
                     <h2 class="mb-4 text-lg font-semibold">Información del Pedido</h2>
                     <div class="space-y-4">
                         <label class="block space-y-1">
-                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Nombre del Cliente (opcional)</span>
-                            <input type="text" name="customer_name" x-model="customerName" x-on:input="saveDraft" class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900" placeholder="Opcional">
-                        </label>
+                    <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                        Nombre del Cliente
+                        <span x-show="serviceType === 'llevar'" class="text-red-500">*</span>
+                        <span x-show="serviceType !== 'llevar'" class="text-zinc-400 text-xs">(opcional)</span>
+                    </span>
+                    <input
+                        type="text"
+                        name="customer_name"
+                        x-model="customerName"
+                        x-on:input="saveDraft"
+                        :required="serviceType === 'llevar'"
+                        :placeholder="serviceType === 'llevar' ? 'Requerido para llevar' : 'Opcional'"
+                        :class="serviceType === 'llevar' && customerName.trim() === ''
+                            ? 'w-full rounded-lg border border-red-500 bg-red-50 px-3 py-2 text-sm focus:border-red-500 focus:outline-none dark:border-red-500 dark:bg-zinc-900'
+                            : 'w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900'"
+                    >
+                    <p
+                        x-show="serviceType === 'llevar' && customerName.trim() === ''"
+                        x-cloak
+                        class="text-xs text-red-500 mt-1"
+                    >⚠ Ingresa el nombre del cliente para pedidos para llevar.</p>
+                </label>
 
                         <label class="block space-y-1">
                             <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Comentario (opcional)</span>
@@ -120,7 +204,7 @@
                         </label>
 
                         <label class="block space-y-1">
-                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Tipo de Servicio</span>
+                            <span class="text-sm font-medium text-red-500">Tipo de Servicio</span>
                             <select name="type" x-model="serviceType" @change="serviceType = $event.target.value; handleTypeChange(); saveDraft();" class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900">
                                 <option value="mesa">En Mesa</option>
                                 <option value="llevar">Para Llevar</option>
@@ -133,15 +217,17 @@
                                     <p class="text-sm text-zinc-600">Selecciona una o varias mesas.</p>
                                     <p class="text-sm font-medium" x-html="selectionLabel()"></p>
                                 </div>
-                                <flux:button
-                                    type="button"
-                                    variant="subtle"
-                                    icon="table-cells"
-                                    x-on:click="goToTableSelector"
-                                    x-bind:disabled="totalTables === 0"
-                                >
-                                    MESAS
-                                </flux:button>
+                                <button
+    type="button"
+    x-on:click="goToTableSelector"
+    x-bind:disabled="totalTables === 0"
+    class="flex items-center gap-2 rounded-lg bg-red-600 hover:bg-red-700 px-3 py-2 text-sm font-semibold text-white transition disabled:opacity-50"
+>
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18M10 3v18M14 3v18" />
+    </svg>
+    MESAS
+</button>
                             </div>
 
                             <template x-for="table in selectedTables" :key="table">
@@ -323,7 +409,7 @@
                     }
 
                     if (!this.selectedTables.length) {
-                        return '<span style="color:red;font-weight:bold">SELECCIONA MESAS</span>';
+                        return '<span style="color:red">SELECCIONA MESAS</span>';
                     }
 
                     const prefix = this.selectedTables.length === 1 ? 'Mesa' : 'Mesas';
