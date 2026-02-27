@@ -18,13 +18,14 @@
                 initialComment: @json(old('comment', '')),
             })'
             x-init="init()"
-            x-on:submit.prevent="
+            x-on:submit="handleSubmit($event)"
             if (serviceType === 'llevar' && customerName.trim() === '') {
                 document.querySelector('[name=customer_name]').focus();
                 return;
             }
             localStorage.removeItem('order_form_draft');
             sessionStorage.setItem('order_just_submitted', '1');
+            $el.removeEventListener('submit', arguments.callee);
             $el.submit();
             "
         >
@@ -60,45 +61,50 @@
         <p class="text-xs font-semibold uppercase tracking-widest text-red-500 mb-2">── Entradas ──</p>
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 mb-6">
             <template x-for="product in products.filter(p => p.category_id == 4)" :key="product.id">
-                <button
-                    type="button"
-                    :disabled="product.sold_out"
-                    :class="product.sold_out
-                        ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
-                        : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
-                    @click="addProduct(product)"
-                >
-                    <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
+                <div
+                :class="product.sold_out
+                    ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
+                    : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition cursor-pointer dark:border-zinc-700 dark:bg-zinc-900'"
+                @click="!selectedMap[product.id + '_' + currentCategory] && !product.sold_out && addProduct(product)"
+            >
+                    {{-- <div class="absolute right-2 top-2" x-show="selectedMap[product.id + '_' + currentCategory]" x-cloak>
                         <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
-                    </div>
+                    </div> --}}
                     <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
                     <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
+                    <div class="flex items-center gap-2 mt-2" x-show="selectedMap[product.id + '_' + currentCategory]" x-cloak @click.stop>
+                        <button type="button" class="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500 hover:bg-red-600 text-white text-lg font-bold leading-none transition" @click.stop="decrement(product.id + '_' + currentCategory)">-</button>
+                        <span class="min-w-[20px] text-center text-sm font-semibold" x-text="selectedMap[product.id + '_' + currentCategory]?.quantity"></span>
+                        <button type="button" class="flex h-7 w-7 items-center justify-center rounded-lg bg-green-500 hover:bg-green-600 text-white text-lg font-bold leading-none transition" @click.stop="addProduct(product)">+</button>
+                    </div>
                     <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
                     <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
-                </button>
+                </div>
             </template>
         </div>
 
         {{-- SEGUNDOS --}}
         <p class="text-xs font-semibold uppercase tracking-widest text-red-500 mb-2" x-text="currentCategory === 1 ? '── Segundos ──' : currentCategory === 2 ? '── Extras ──' : '── Porciones ──'"></p>
-<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-    <template x-for="product in products.filter(p => currentCategory === 1 ? p.category_id == 1 : p.category_id == currentCategory)" :key="product.id">
-                <button
-                    type="button"
-                    :disabled="product.sold_out"
-                    :class="product.sold_out
-                        ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
-                        : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
-                    @click="addProduct(product)"
-                >
-                    <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
-                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
-                    </div>
-                    <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
-                    <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
-                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
-                    <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
-                </button>
+                <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                    <template x-for="product in products.filter(p => currentCategory === 1 ? p.category_id == 1 : p.category_id == currentCategory)" :key="product.id">
+
+                       <div
+                :class="product.sold_out
+                    ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
+                    : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition cursor-pointer dark:border-zinc-700 dark:bg-zinc-900'"
+                @click="!selectedMap[product.id + '_' + currentCategory] && !product.sold_out && addProduct(product)"
+            >
+                <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
+                <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
+                <div class="flex items-center gap-2 mt-2" x-show="selectedMap[product.id + '_' + currentCategory]" x-cloak @click.stop>
+                    <button type="button" class="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500 hover:bg-red-600 text-white text-lg font-bold leading-none transition" @click.stop="decrement(product.id + '_' + currentCategory)">-</button>
+                    <span class="min-w-[20px] text-center text-sm font-semibold" x-text="selectedMap[product.id + '_' + currentCategory]?.quantity"></span>
+                    <button type="button" class="flex h-7 w-7 items-center justify-center rounded-lg bg-green-500 hover:bg-green-600 text-white text-lg font-bold leading-none transition" @click.stop="addProduct(product)">+</button>
+                </div>
+                <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
+                <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
+            </div> 
+
             </template>
         </div>
     </div>
@@ -109,22 +115,22 @@
     <div>
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             <template x-for="product in filteredProducts" :key="product.id">
-                <button
-                    type="button"
-                    :disabled="product.sold_out"
-                    :class="product.sold_out
-                        ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
-                        : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
-                    @click="addProduct(product)"
-                >
-                    <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
-                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
-                    </div>
-                    <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
-                    <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
-                    <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
-                    <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
-                </button>
+               <div
+    :class="product.sold_out
+        ? 'opacity-50 cursor-not-allowed relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900'
+        : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition cursor-pointer dark:border-zinc-700 dark:bg-zinc-900'"
+    @click="!selectedMap[product.id + '_' + currentCategory] && !product.sold_out && addProduct(product)"
+>
+    <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
+    <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
+    <div class="flex items-center gap-2 mt-2" x-show="selectedMap[product.id + '_' + currentCategory]" x-cloak @click.stop>
+        <button type="button" class="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500 hover:bg-red-600 text-white text-lg font-bold leading-none transition" @click.stop="decrement(product.id + '_' + currentCategory)">-</button>
+        <span class="min-w-[20px] text-center text-sm font-semibold" x-text="selectedMap[product.id + '_' + currentCategory]?.quantity"></span>
+        <button type="button" class="flex h-7 w-7 items-center justify-center rounded-lg bg-green-500 hover:bg-green-600 text-white text-lg font-bold leading-none transition" @click.stop="addProduct(product)">+</button>
+    </div>
+    <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
+    <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
+</div>
             </template>
             <p x-show="!filteredProducts.length" class="col-span-full text-sm text-zinc-500" x-cloak>No hay productos en esta categoría.</p>
         </div>
@@ -142,16 +148,16 @@
                         <button type="button" class="text-sm text-rose-600 hover:underline" @click="clearProducts" x-show="selectedList.length" x-cloak>Vaciar</button>
                     </div>
                     <div class="space-y-3" x-show="selectedList.length" x-cloak>
-                        <template x-for="item in selectedList" :key="item.id">
+                        <template x-for="item in selectedList" :key="item._mapKey ?? item.id">
                             <div class="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700">
                                 <div>
                                     <p class="font-medium" x-text="item.name"></p>
                                     <p class="text-xs text-zinc-500" x-text="currency(item.price)"></p>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="decrement(item.id)">-</button>
+                                    <button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500 hover:bg-red-600 text-white text-lg font-bold leading-none transition" @click="decrement(item._mapKey ?? item.id)">-</button>
                                     <span class="min-w-[24px] text-center text-sm font-semibold" x-text="item.quantity"></span>
-                                    <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="increment(item.id)">+</button>
+                                    <button type="button" class="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500 hover:bg-green-600 text-white text-lg font-bold leading-none transition" @click="increment(item._mapKey ?? item.id)">+</button>
                                     <button type="button" class="text-xs text-blue-600 underline flex items-center gap-1" @click="openCommentModal(item)">
                                     <i class="bi bi-chat-dots"></i>
                                 </button>
@@ -162,13 +168,14 @@
                     </div>
                     <p class="text-sm text-zinc-500" x-show="!selectedList.length">Toca un producto para agregarlo al pedido.</p>
 
-                    <template x-for="(item, index) in selectedList" :key="`hidden-${item.id}`">
-                        <div>
-                            <input type="hidden" :name="`items[${index}][product_id]`" :value="item.id">
-                            <input type="hidden" :name="`items[${index}][quantity]`" :value="item.quantity">
-                            <input type="hidden" :name="`items[${index}][comment]`" :value="item.comment || ''">
-                        </div>
-                    </template>
+                    <template x-for="(item, index) in selectedList" :key="`hidden-${item._mapKey ?? item.id}`">
+                    <div>
+                        <input type="hidden" :name="`items[${index}][product_id]`" :value="item.id">
+                        <input type="hidden" :name="`items[${index}][quantity]`" :value="item.quantity">
+                        <input type="hidden" :name="`items[${index}][comment]`" :value="item.comment || ''">
+                        <input type="hidden" :name="`items[${index}][override_price]`" :value="item.price">
+                    </div>
+                </template>
                 </div>
 
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
@@ -354,16 +361,18 @@
             
                 const ids = Object.keys(this.selectedMap || {});
                 let changed = false;
-                ids.forEach((id) => {
-                    const item = this.selectedMap[id];
-                    const product = this.products.find(p => p.id == id);
+                ids.forEach((mapKey) => {
+                    const item = this.selectedMap[mapKey];
+                    // La clave es "productId_categoryId", extraer solo el productId
+                    const productId = item.id ?? mapKey.split('_')[0];
+                    const product = this.products.find(p => p.id == productId);
                     if (!product) {
-                        delete this.selectedMap[id];
+                        delete this.selectedMap[mapKey];
                         changed = true;
                         return;
                     }
                     if ((product.sold_out) || (!product.allow_negative && typeof product.stock === 'number' && item.quantity > product.stock)) {
-                        delete this.selectedMap[id];
+                        delete this.selectedMap[mapKey];
                         changed = true;
                     }
                 });
@@ -419,7 +428,27 @@
                     if (this.serviceType !== 'mesa') {
                         this.selectedTables = [];
                     }
+                    // Recalcular precios al cambiar tipo de servicio
+                    Object.keys(this.selectedMap).forEach((mapKey) => {
+                        const item = this.selectedMap[mapKey];
+                        const product = this.products.find(p => p.id == item.id);
+                        if (!product) return;
+
+                        let basePrice = product.price;
+                        if (product.category_id == 4) {
+                            const isCeviche = product.name.toLowerCase().includes('ceviche');
+                            const catId = parseInt(mapKey.split('_')[1]);
+                            if (catId === 1) basePrice = 0;
+                            else if (catId === 2) basePrice = isCeviche ? 2 : 1;
+                            else if (catId === 5) basePrice = isCeviche ? 5 : 4;
+                        }
+                        if (this.serviceType === 'llevar' && Number(basePrice) > 9) {
+                            basePrice = Number(basePrice) + 1;
+                        }
+                        this.selectedMap[mapKey] = { ...item, price: basePrice };
+                    });
                     this.saveDraft();
+                
                 },
                 goToTableSelector() {
                     this.saveDraft();
@@ -431,18 +460,58 @@
                 },
                 addProduct(product) {
                     if (product.sold_out) return;
-                    const existing = this.selectedMap[product.id] ?? { ...product, quantity: 0 };
-                    // If not previously selected, start at 1
-                    const startingQty = existing.quantity > 0 ? existing.quantity : 0;
-                    const newQty = startingQty + 1;
-                    if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
-                        showToast('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
-                        return;
+                    
+                // Clave única por producto + categoría activa
+                    const mapKey = `${product.id}_${this.currentCategory}`;
+
+                // Determinar precio según categoría activa y producto
+                let adjustedPrice = product.price;
+                if (product.category_id == 4) {
+                    const isCeviche = product.name.toLowerCase().includes('ceviche');
+                    if (this.currentCategory === 1) {
+                        // MENU
+                        adjustedPrice = 0;
+                    } else if (this.currentCategory === 2) {
+                        // EXTRAS
+                        adjustedPrice = isCeviche ? 2 : 1;
+                    } else if (this.currentCategory === 5) {
+                        // PORCIONES
+                        adjustedPrice = isCeviche ? 5 : 4;
                     }
-                    existing.quantity = newQty;
-                    this.selectedMap[product.id] = existing;
-                    this.saveDraft();
-                },
+                }
+
+                // +1 soles para llevar si precio > 9
+                if (this.serviceType === 'llevar' && Number(adjustedPrice) > 9) {
+                    adjustedPrice = Number(adjustedPrice) + 1;
+                }
+
+                const existing = this.selectedMap[mapKey] ?? { ...product, quantity: 0, price: adjustedPrice, _mapKey: mapKey };
+                    const newQty = existing.quantity + 1;
+
+                if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
+                    showToast('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
+                    return;
+                    }
+
+                existing.quantity = newQty;
+                existing.price = adjustedPrice;
+                this.selectedMap[mapKey] = existing;
+                this.saveDraft();
+            },
+                // addProduct(product) {
+                //     if (product.sold_out) return;
+                //     const existing = this.selectedMap[product.id] ?? { ...product, quantity: 0 };
+                //     // If not previously selected, start at 1
+                //     const startingQty = existing.quantity > 0 ? existing.quantity : 0;
+                //     const newQty = startingQty + 1;
+                //     if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
+                //         showToast('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
+                //         return;
+                //     }
+                //     existing.quantity = newQty;
+                //     this.selectedMap[product.id] = existing;
+                //     this.saveDraft();
+                // },
                 //MODAL
                 openCommentModal(item) {
                 this.currentCommentItem = item;
@@ -455,19 +524,16 @@
                 this.currentCommentText = '';
             },
             saveItemComment() {
-                if (this.currentCommentItem) {
-                    const id = this.currentCommentItem.id;
-                
-                    // Actualizar directamente en selectedMap
-                    this.selectedMap[id] = {
-                        ...this.selectedMap[id],
-                        comment: this.currentCommentText
-                    };
-                
-                    this.saveDraft();
-                }
-                this.closeCommentModal();
-            },
+            if (this.currentCommentItem) {
+                const key = this.currentCommentItem._mapKey ?? this.currentCommentItem.id;
+                this.selectedMap[key] = {
+                    ...this.selectedMap[key],
+                    comment: this.currentCommentText
+                };
+                this.saveDraft();
+            }
+            this.closeCommentModal();
+        },
             //END MODAL
                 itemSubtotal(item) {
                     return (Number(item.price) || 0) * (Number(item.quantity) || 0);
@@ -481,8 +547,7 @@
                 increment(productId) {
                     if (!this.selectedMap[productId]) return;
                     const item = this.selectedMap[productId];
-                    // find product using loose equality to avoid type mismatch
-                    const product = this.products.find(p => p.id == productId) || item;
+                    const product = this.products.find(p => p.id == item.id) || item;
                     const newQty = item.quantity + 1;
                     if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
                         showToast('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
@@ -491,6 +556,7 @@
                     this.selectedMap[productId].quantity = newQty;
                     this.saveDraft();
                 },
+                
                 decrement(productId) {
                     if (!this.selectedMap[productId]) return;
                     this.selectedMap[productId].quantity -= 1;
@@ -512,6 +578,16 @@
                 currency(value) {
                     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
                 },
+                handleSubmit(event) {
+                if (this.serviceType === 'llevar' && this.customerName.trim() === '') {
+                    event.preventDefault();
+                    document.querySelector('[name=customer_name]').focus();
+                    return;
+                }
+                localStorage.removeItem('order_form_draft');
+                sessionStorage.setItem('order_just_submitted', '1');
+                // Dejar que el form se envíe normalmente
+            },
             };
         }
     </script>

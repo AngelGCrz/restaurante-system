@@ -312,6 +312,7 @@ class OrderController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.comment' => 'nullable|string',
+            'items.*.override_price' => 'nullable|numeric|min:0',
         ]);
 
         $stockEnabled = (bool) Setting::getValue('stock_enabled', false);
@@ -505,6 +506,10 @@ class OrderController extends Controller
         'items.*.product_id' => 'required|exists:products,id',
         'items.*.quantity' => 'required|integer|min:1',
         'items.*.comment' => 'nullable|string',
+        'items.*.product_id' => 'required|exists:products,id',
+        'items.*.quantity' => 'required|integer|min:1',
+        'items.*.comment' => 'nullable|string',
+        'items.*.override_price' => 'nullable|numeric|min:0',
     ]);
 
     if ($validated['type'] === 'mesa' && $tableCount === 0) {
@@ -611,11 +616,19 @@ class OrderController extends Controller
                     }
                 }
 
-                $price = $product->price;
-
-                if ($validated['type'] === 'llevar' && $price > 9) {
-                    $price += 1;
+                // Si viene override_price, usarlo directamente sin aplicar recargo de llevar
+                if (isset($item['override_price']) && $item['override_price'] !== '') {
+                    $price = (float) $item['override_price'];
+                } else {
+                    $price = $product->price;
+                    if ($validated['type'] === 'llevar' && $price > 9) {
+                        $price += 1;
+                    }
                 }
+
+                // if ($validated['type'] === 'llevar' && $price > 9) {
+                //     $price += 1;
+                // }
 
                 $subtotal = $price * $item['quantity'];
 
