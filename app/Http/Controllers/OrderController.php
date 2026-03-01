@@ -203,11 +203,31 @@ class OrderController extends Controller
             return redirect()->route('mozo.orders.show', $order)->withErrors(['order' => 'Solo puede agregarse productos a pedidos pendientes.']);
         }
 
-        $categories = Category::with(['products' => function ($q) {
-            $q->where('is_available', true)->orderBy('name');
-        }])->orderBy('name')->get();
+        $stockEnabled       = (bool) Setting::getValue('stock_enabled', false);
+        $stockMinimum       = Setting::getValue('stock_minimum_threshold', null);
+        $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
 
-        return view('orders.add-items', compact('order', 'categories'));
+        $products = Product::where('is_available', true)
+            ->select('id', 'name', 'price', 'category_id', 'is_available', 'stock')
+            ->get()
+            ->map(function ($p) use ($stockEnabled, $stockMinimum, $stockAllowNegative) {
+                $stock = (int) $p->stock;
+                return [
+                    'id'             => $p->id,
+                    'name'           => $p->name,
+                    'price'          => $p->price,
+                    'category_id'    => $p->category_id,
+                    'is_available'   => (bool) $p->is_available,
+                    'stock'          => $stock,
+                    'low_stock'      => $stockEnabled && $stockMinimum !== null && $stock <= $stockMinimum && $stock > 0,
+                    'sold_out'       => $stockEnabled && $stock <= 0,
+                    'allow_negative' => $stockAllowNegative,
+                ];
+            })->values();
+
+        $categories = Category::select('id', 'name')->orderByRaw("FIELD(id, 4, 1, 2, 3, 5)")->get();
+
+        return view('orders.add-items', compact('order', 'products', 'categories'));
     }
 
     /**
@@ -311,8 +331,8 @@ class OrderController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'nullable|numeric|min:0',
             'items.*.comment' => 'nullable|string',
-            'items.*.override_price' => 'nullable|numeric|min:0',
         ]);
 
         $stockEnabled = (bool) Setting::getValue('stock_enabled', false);
@@ -347,9 +367,15 @@ class OrderController extends Controller
             }
         }
 
-        $price = $product->price;
-        if ($childOrder->type === 'llevar' && $price > 9) {
-            $price += 1;
+        // Usar precio del frontend si fue enviado (maneja precios especiales
+        // de entradas por categoría); si no, calcular desde el producto.
+        if (isset($item['price']) && is_numeric($item['price'])) {
+            $price = (float) $item['price'];
+        } else {
+            $price = (float) $product->price;
+            if ($childOrder->type === 'llevar' && $price > 9) {
+                $price += 1;
+            }
         }
 
         $subtotal = $price * $item['quantity'];
@@ -435,7 +461,7 @@ class OrderController extends Controller
                 'allow_negative' => $stockAllowNegative,
             ];
         })->values();
-        $categories = Category::select('id', 'name')->orderByRaw("FIELD(id, 4, 1, 6, 2, 3, 5)")->get();
+        $categories = Category::select('id', 'name')->orderByRaw("FIELD(id, 4, 1, 2, 3, 5)")->get();
         // $categories = Category::select('id', 'name')->orderBy('name')->get();
         $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
         $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
@@ -505,11 +531,8 @@ class OrderController extends Controller
         'items' => 'required|array|min:1',
         'items.*.product_id' => 'required|exists:products,id',
         'items.*.quantity' => 'required|integer|min:1',
+        'items.*.price' => 'nullable|numeric|min:0',
         'items.*.comment' => 'nullable|string',
-        'items.*.product_id' => 'required|exists:products,id',
-        'items.*.quantity' => 'required|integer|min:1',
-        'items.*.comment' => 'nullable|string',
-        'items.*.override_price' => 'nullable|numeric|min:0',
     ]);
 
     if ($validated['type'] === 'mesa' && $tableCount === 0) {
@@ -616,19 +639,16 @@ class OrderController extends Controller
                     }
                 }
 
-                // Si viene override_price, usarlo directamente sin aplicar recargo de llevar
-                if (isset($item['override_price']) && $item['override_price'] !== '') {
-                    $price = (float) $item['override_price'];
+                // Usar precio del frontend si fue enviado (respeta precios especiales
+                // de entradas por categoría). Fallback al precio del producto.
+                if (isset($item['price']) && is_numeric($item['price'])) {
+                    $price = (float) $item['price'];
                 } else {
-                    $price = $product->price;
+                    $price = (float) $product->price;
                     if ($validated['type'] === 'llevar' && $price > 9) {
                         $price += 1;
                     }
                 }
-
-                // if ($validated['type'] === 'llevar' && $price > 9) {
-                //     $price += 1;
-                // }
 
                 $subtotal = $price * $item['quantity'];
 
@@ -693,91 +713,39 @@ class OrderController extends Controller
     public function cancel(Request $request, Order $order)
     {
         if ($order->status === 'cancelado') {
-            return redirect()->back()->with('info', 'El pedido ya está cancelado.');
+            return redirect()->route('orders.show', $order)->with('info', 'El pedido ya está cancelado.');
         }
 
         if ($order->status === 'pagado') {
-            return redirect()->back()->withErrors(['order' => 'No se puede cancelar un pedido ya cobrado.']);
+            return redirect()->route('orders.show', $order)->withErrors(['order' => 'No se puede cancelar un pedido ya cobrado.']);
         }
 
-        $request->validate([
-            'cancel_reason' => 'nullable|string|max:255',
-        ]);
-
-        $order->update([
-            'status'        => 'cancelado',
-            'cancel_reason' => $request->input('cancel_reason') ?: null,
-        ]);
-
+        $order->update(['status' => 'cancelado']);
         // Si la orden cancelada es una ORDEN PADRE, promover una hija pendiente (si existe)
+        // Esto mantiene la mesa visible en la vista de mozo (las hijas no se listan como padres).
         if (is_null($order->origin_order_id)) {
             $pendingChildren = $order->childOrders()->where('status', 'pendiente')->get();
             foreach ($pendingChildren as $pendingChild) {
                 $pendingChild->origin_order_id = null;
+                // Asignar la orden promovida al mismo mozo que era responsable del padre
                 $pendingChild->user_id = $order->user_id;
                 $pendingChild->save();
             }
         }
 
-        // Si se está cancelando una orden HIJA, decrementar el total del padre
+        // ✅ Si se está cancelando una orden HIJA, decrementar el total del padre
         if ($order->origin_order_id && $order->type !== 'llevar') {
             $parent = Order::find($order->origin_order_id);
             $parent?->decrement('total', $order->total);
         }
 
-        return redirect()->back()->with('success', 'Pedido #' . $order->id . ' cancelado.');
+        return redirect()->route('orders.show', $order)->with('success', 'Pedido cancelado.');
     }
 
     /**
      * Endpoint JSON para polling de caja.
      * Devuelve un hash del estado actual de pedidos pendientes.
      */
-    /**
-     * Lista de pagos: pedidos cobrados y cancelados con filtros.
-     */
-    public function payments(Request $request)
-    {
-        $status  = $request->input('status', 'all');   // all | pagado | cancelado
-        $from    = $request->input('from');
-        $to      = $request->input('to');
-        $search  = $request->input('search');
-
-        $query = Order::with(['items.product', 'user'])
-            ->whereIn('status', ['pagado', 'cancelado'])
-            ->orderBy('updated_at', 'desc');
-
-        if ($status !== 'all') {
-            $query->where('status', $status);
-        }
-
-        if ($from) {
-            $query->whereDate('updated_at', '>=', $from);
-        }
-
-        if ($to) {
-            $query->whereDate('updated_at', '<=', $to);
-        }
-
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('customer_name', 'like', "%{$search}%")
-                  ->orWhere('id', 'like', "%{$search}%");
-            });
-        }
-
-        $orders = $query->paginate(20)->withQueryString();
-
-        $totalPagado    = Order::where('status', 'pagado')->sum('total');
-        $totalCancelado = Order::where('status', 'cancelado')->sum('total');
-        $countPagado    = Order::where('status', 'pagado')->count();
-        $countCancelado = Order::where('status', 'cancelado')->count();
-
-        return view('orders.payments', compact(
-            'orders', 'status', 'from', 'to', 'search',
-            'totalPagado', 'totalCancelado', 'countPagado', 'countCancelado'
-        ));
-    }
-
     public function pollCaja()
     {
         $orders = Order::where('status', 'pendiente')

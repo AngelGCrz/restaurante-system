@@ -9,7 +9,6 @@
         </div>
 
         <div id="orders-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
             @foreach($orders as $order)
                 <div class="order-card rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800" data-order-id="{{ $order->id }}">
                     <div class="flex justify-between items-center mb-3">
@@ -19,7 +18,7 @@
                             <button type="button"
                                 onclick="printKitchenOrder(this)"
                                 class="rounded-md bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700">
-                                🖨️ 
+                                🖨️
                             </button>
                         </div>
                     </div>
@@ -57,7 +56,6 @@
                     </ul>
                 </div>
             @endforeach
-
         </div>
     </div>
 
@@ -68,43 +66,42 @@
     </div>
 
 <script>
-    // =============================================
-    // POLLING EN TIEMPO REAL — COCINA
-    // =============================================
-    const POLL_INTERVAL = 5000; // 5 segundos
-    let currentHash = null;
-    let isPolling = true;
+(function () {
+    // ─── ESTADO DEL MÓDULO ───────────────────────────────────────────────────────
+    // Usamos una variable global para poder limpiar el intervalo cuando Livewire
+    // desmonta la página (wire:navigate) y evitar que se acumulen intervalos.
+    if (window._kitchenInterval) {
+        clearInterval(window._kitchenInterval);
+        window._kitchenInterval = null;
+    }
 
-    // IDs de órdenes ya impresas (ocultas)
-    const printedOrders = new Set(
-        JSON.parse(localStorage.getItem('kitchen_printed_orders') || '[]').map(String)
-    );
+    const POLL_INTERVAL = 5000;
 
-    // Inicializar hash con los pedidos ya cargados
-    const initialIds = [...document.querySelectorAll('.order-card')]
-        .map(c => c.dataset.orderId)
-        .sort()
-        .join(',');
-    currentHash = initialIds ? btoa(initialIds) : null;
+    // IDs de órdenes ya impresas (persistidas en localStorage)
+    function getPrintedOrders() {
+        try {
+            return new Set(JSON.parse(localStorage.getItem('kitchen_printed_orders') || '[]').map(String));
+        } catch { return new Set(); }
+    }
 
-    // Ocultar tarjetas ya impresas al cargar
-    document.addEventListener('DOMContentLoaded', () => {
-        printedOrders.forEach(id => {
-            const card = document.querySelector(`.order-card[data-order-id="${id}"]`);
-            if (card) card.style.display = 'none';
-        });
-    });
+    // NOTA: NO ocultamos las tarjetas del servidor al cargar.
+    // Si el servidor las devuelve como pendientes, deben mostrarse siempre.
+    // El filtro de "impresas" solo aplica a tarjetas nuevas que llegan via polling.
 
+    // ─── POLLING ─────────────────────────────────────────────────────────────────
     async function pollKitchen() {
-        if (!isPolling) return;
+        const grid = document.getElementById('orders-grid');
+        if (!grid) return; // La página fue desmontada
+
         try {
             const resp = await fetch('/kitchen/poll', { credentials: 'same-origin' });
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const data = await resp.json();
 
-            const serverIds = new Set(data.orders.map(o => String(o.id)));
+            const printed     = getPrintedOrders();
+            const serverIds   = new Set(data.orders.map(o => String(o.id)));
             const displayedIds = new Set(
-                [...document.querySelectorAll('.order-card')].map(c => c.dataset.orderId)
+                [...grid.querySelectorAll('.order-card')].map(c => c.dataset.orderId)
             );
 
             let hasNew = false;
@@ -112,30 +109,30 @@
             // Agregar nuevas tarjetas
             data.orders.forEach(order => {
                 const id = String(order.id);
-                if (!displayedIds.has(id)) {
-                    const card = buildOrderCard(order);
-                    document.getElementById('orders-grid').prepend(card);
-                    // Animar entrada
-                    card.style.opacity = '0';
-                    card.style.transform = 'translateY(-12px)';
-                    card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-                    requestAnimationFrame(() => {
-                        card.style.opacity = '1';
-                        card.style.transform = 'translateY(0)';
-                    });
-                    // Ocultar si ya fue impresa
-                    if (printedOrders.has(id)) card.style.display = 'none';
-                    hasNew = true;
-                }
+                if (displayedIds.has(id)) return;
+
+                const card = buildOrderCard(order);
+                grid.prepend(card);
+
+                card.style.opacity   = '0';
+                card.style.transform = 'translateY(-12px)';
+                card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                requestAnimationFrame(() => {
+                    card.style.opacity   = '1';
+                    card.style.transform = 'translateY(0)';
+                });
+
+                // No ocultar - si el servidor la envía es porque sigue pendiente
+                hasNew = true;
             });
 
-            // Remover tarjetas cuyo pedido ya no está pendiente
+            // Remover tarjetas de pedidos que ya no son pendientes
             displayedIds.forEach(id => {
                 if (!serverIds.has(id)) {
-                    const card = document.querySelector(`.order-card[data-order-id="${id}"]`);
+                    const card = grid.querySelector(`.order-card[data-order-id="${id}"]`);
                     if (card) {
                         card.style.transition = 'opacity 0.4s ease';
-                        card.style.opacity = '0';
+                        card.style.opacity    = '0';
                         setTimeout(() => card.remove(), 400);
                     }
                 }
@@ -143,6 +140,12 @@
 
             if (hasNew) showToast('🔔 Nuevo pedido recibido');
 
+            // Limpiar del localStorage IDs que ya no están en el servidor
+            try {
+                const stored = JSON.parse(localStorage.getItem('kitchen_printed_orders') || '[]');
+                const cleaned = stored.filter(id => serverIds.has(String(id)));
+                localStorage.setItem('kitchen_printed_orders', JSON.stringify(cleaned));
+            } catch {}
             setIndicator('online');
 
         } catch (err) {
@@ -151,12 +154,13 @@
         }
     }
 
+    // ─── HELPERS ─────────────────────────────────────────────────────────────────
     function buildOrderCard(order) {
         const div = document.createElement('div');
-        div.className = 'order-card rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800 ring-2 ring-green-400';
+        div.className   = 'order-card rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800 ring-2 ring-green-400';
         div.dataset.orderId = order.id;
 
-        const originBadge = order.origin_order_id
+        const originBadge  = order.origin_order_id
             ? `<div class="mb-3 rounded-lg bg-yellow-50 p-2 text-sm text-yellow-700 italic">Agregado a la orden: #${order.origin_order_id}</div>`
             : '';
         const commentBadge = order.comment
@@ -186,9 +190,7 @@
             ${originBadge}${commentBadge}
             <ul class="divide-y divide-zinc-100 dark:divide-zinc-700">${itemsHtml}</ul>`;
 
-        // Quitar el ring de "nuevo" después de 3 segundos
         setTimeout(() => div.classList.remove('ring-2', 'ring-green-400'), 3000);
-
         return div;
     }
 
@@ -204,96 +206,94 @@
     function setIndicator(state) {
         const dot = document.getElementById('polling-indicator');
         const txt = document.getElementById('polling-status');
+        if (!dot || !txt) return;
         if (state === 'online') {
-            dot.className = 'inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse';
-            txt.textContent = 'En vivo';
+            dot.className    = 'inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse';
+            txt.textContent  = 'En vivo';
         } else {
-            dot.className = 'inline-block w-2 h-2 rounded-full bg-red-500';
-            txt.textContent = 'Sin conexión';
+            dot.className    = 'inline-block w-2 h-2 rounded-full bg-red-500';
+            txt.textContent  = 'Sin conexión';
         }
     }
 
     let toastTimeout;
     function showToast(msg) {
         const toast = document.getElementById('new-order-toast');
+        if (!toast) return;
         document.getElementById('new-order-toast-text').textContent = msg;
         toast.classList.remove('hidden');
         clearTimeout(toastTimeout);
         toastTimeout = setTimeout(() => toast.classList.add('hidden'), 2000);
     }
 
-    // Iniciar polling
-    setInterval(pollKitchen, POLL_INTERVAL);
+    // ─── INICIAR POLLING ─────────────────────────────────────────────────────────
+    window._kitchenInterval = setInterval(pollKitchen, POLL_INTERVAL);
 
-    // =============================================
-    // IMPRESIÓN (código original sin cambios)
-    // =============================================
-    async function printKitchenOrder(button) {
+    // Limpiar intervalo cuando Livewire navega a otra página (wire:navigate)
+    document.addEventListener('livewire:navigating', function cleanup() {
+        if (window._kitchenInterval) {
+            clearInterval(window._kitchenInterval);
+            window._kitchenInterval = null;
+        }
+        document.removeEventListener('livewire:navigating', cleanup);
+    }, { once: true });
+
+    // ─── IMPRESIÓN ───────────────────────────────────────────────────────────────
+    window.printKitchenOrder = async function (button) {
         const orderCard = button.closest('.order-card');
-        const orderId = orderCard?.dataset?.orderId;
+        const orderId   = orderCard?.dataset?.orderId;
         if (!orderId) return alert('Pedido no identificado');
 
         const responseOrder = await getOrder(orderId);
-        let order = responseOrder.order;
-        let orderitems = order.items.map(i => ({
-            item_quantity: i.quantity,
-            item_product_name: i.product.name,
-            item_product_comment: i.comment
+        if (!responseOrder) return;
+
+        const order      = responseOrder.order;
+        const orderitems = order.items.map(i => ({
+            item_quantity:        i.quantity,
+            item_product_name:    i.product.name,
+            item_product_comment: i.comment,
         }));
 
-        let pedidobody = {
-            order_id: order.id,
-            order_created_at: order.created_at,
+        const pedidobody = {
+            order_id:           order.id,
+            order_created_at:   order.created_at,
             order_customer_name: order.customer_name,
-            order_table_label: order.table_label,
-            order_comment: order.comment,
-            items: orderitems            
+            order_table_label:  order.table_label,
+            order_comment:      order.comment,
+            items:              orderitems,
         };
 
-        const socket = new WebSocket("ws://localhost:3000");
-        socket.onopen = () => {
-            socket.send(JSON.stringify({ action: "print-ticket", pedido: pedidobody }));
-        };
-        socket.onmessage = e => console.log("Respuesta:", JSON.parse(e.data));
-        
+        const socket    = new WebSocket('ws://localhost:3000');
+        socket.onopen   = () => socket.send(JSON.stringify({ action: 'print-ticket', pedido: pedidobody }));
+        socket.onmessage = e => console.log('Respuesta:', JSON.parse(e.data));
+
         orderCard.style.transition = 'opacity 0.4s ease';
-        orderCard.style.opacity = '0';
+        orderCard.style.opacity    = '0';
         setTimeout(() => { orderCard.style.display = 'none'; }, 400);
 
         const printed = JSON.parse(localStorage.getItem('kitchen_printed_orders') || '[]');
         if (!printed.includes(orderId)) {
             printed.push(orderId);
             localStorage.setItem('kitchen_printed_orders', JSON.stringify(printed));
-            printedOrders.add(String(orderId));
         }
-    }
+    };
 
     async function getOrder(orderId) {
         try {
-            const tokenMeta = document.querySelector('meta[name="csrf-token"]');
-            const csrfToken = tokenMeta ? tokenMeta.getAttribute('content') : '';
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
             const resp = await fetch(`/kitchen/${orderId}/print`, {
-                method: 'POST',
+                method:      'POST',
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-                body: JSON.stringify({})
+                headers:     { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body:        JSON.stringify({}),
             });
             if (!resp.ok) throw new Error('Error al obtener pedido');
             return await resp.json();
         } catch (e) {
             console.error(e);
+            return null;
         }
     }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const printed = JSON.parse(localStorage.getItem('kitchen_printed_orders') || '[]');
-        printed.forEach(id => {
-            const card = document.querySelector(`.order-card[data-order-id="${id}"]`);
-            if (card) card.style.display = 'none';
-        });
-    });
+})();
 </script>
 </x-layouts.app>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
