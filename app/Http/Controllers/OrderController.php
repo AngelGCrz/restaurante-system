@@ -203,31 +203,11 @@ class OrderController extends Controller
             return redirect()->route('mozo.orders.show', $order)->withErrors(['order' => 'Solo puede agregarse productos a pedidos pendientes.']);
         }
 
-        $stockEnabled       = (bool) Setting::getValue('stock_enabled', false);
-        $stockMinimum       = Setting::getValue('stock_minimum_threshold', null);
-        $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
+        $categories = Category::with(['products' => function ($q) {
+            $q->where('is_available', true)->orderBy('name');
+        }])->orderBy('name')->get();
 
-        $products = Product::where('is_available', true)
-            ->select('id', 'name', 'price', 'category_id', 'is_available', 'stock')
-            ->get()
-            ->map(function ($p) use ($stockEnabled, $stockMinimum, $stockAllowNegative) {
-                $stock = (int) $p->stock;
-                return [
-                    'id'             => $p->id,
-                    'name'           => $p->name,
-                    'price'          => $p->price,
-                    'category_id'    => $p->category_id,
-                    'is_available'   => (bool) $p->is_available,
-                    'stock'          => $stock,
-                    'low_stock'      => $stockEnabled && $stockMinimum !== null && $stock <= $stockMinimum && $stock > 0,
-                    'sold_out'       => $stockEnabled && $stock <= 0,
-                    'allow_negative' => $stockAllowNegative,
-                ];
-            })->values();
-
-        $categories = Category::select('id', 'name')->orderByRaw("FIELD(id, 4, 1, 2, 3, 5)")->get();
-
-        return view('orders.add-items', compact('order', 'products', 'categories'));
+        return view('orders.add-items', compact('order', 'categories'));
     }
 
     /**
@@ -331,7 +311,6 @@ class OrderController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.price' => 'nullable|numeric|min:0',
             'items.*.comment' => 'nullable|string',
         ]);
 
@@ -367,15 +346,9 @@ class OrderController extends Controller
             }
         }
 
-        // Usar precio del frontend si fue enviado (maneja precios especiales
-        // de entradas por categoría); si no, calcular desde el producto.
-        if (isset($item['price']) && is_numeric($item['price'])) {
-            $price = (float) $item['price'];
-        } else {
-            $price = (float) $product->price;
-            if ($childOrder->type === 'llevar' && $price > 9) {
-                $price += 1;
-            }
+        $price = $product->price;
+        if ($childOrder->type === 'llevar' && $price > 9) {
+            $price += 1;
         }
 
         $subtotal = $price * $item['quantity'];
@@ -424,11 +397,7 @@ class OrderController extends Controller
                 $msg .= ' Se creó la orden #' . $childOrder->id . ' para cocina.';
             }
 
-            // Si se creó una orden hija, mostrar su detalle; sino mostrar la orden padre
-            if ($childOrder) {
-                return redirect()->route('mozo.orders.show', $childOrder)->with('success', $msg);
-            }
-
+            // Siempre redirigir al PADRE para que el mozo vea el pedido completo
             return redirect()->route('mozo.orders.show', $order)->with('success', $msg);
 
         } catch (\RuntimeException $e) {
@@ -531,7 +500,6 @@ class OrderController extends Controller
         'items' => 'required|array|min:1',
         'items.*.product_id' => 'required|exists:products,id',
         'items.*.quantity' => 'required|integer|min:1',
-        'items.*.price' => 'nullable|numeric|min:0',
         'items.*.comment' => 'nullable|string',
     ]);
 
@@ -639,15 +607,10 @@ class OrderController extends Controller
                     }
                 }
 
-                // Usar precio del frontend si fue enviado (respeta precios especiales
-                // de entradas por categoría). Fallback al precio del producto.
-                if (isset($item['price']) && is_numeric($item['price'])) {
-                    $price = (float) $item['price'];
-                } else {
-                    $price = (float) $product->price;
-                    if ($validated['type'] === 'llevar' && $price > 9) {
-                        $price += 1;
-                    }
+                $price = $product->price;
+
+                if ($validated['type'] === 'llevar' && $price > 9) {
+                    $price += 1;
                 }
 
                 $subtotal = $price * $item['quantity'];
@@ -764,8 +727,9 @@ class OrderController extends Controller
 
     public function show(Order $order)
     {
-        $order->load('items.product');
-    
+        // Cargar items propios + órdenes hijas con sus items
+        $order->load('items.product', 'childOrders.items.product');
+
         $categories = Category::with('products')->get();
         return view('orders.show', compact('order', 'categories'));
     }
@@ -830,7 +794,7 @@ public function payTable(Request $request)
     $totalCobrado = $orders->sum('total');
     $cantidadPedidos = $orders->count();
 
-    return redirect()->route('orders.index')->with('success', 
+    return redirect()->route('caja.dashboard')->with('success', 
         "Mesa cobrada exitosamente. {$cantidadPedidos} pedido(s) | Total: S/ " . number_format($totalCobrado, 2)
     );
 }

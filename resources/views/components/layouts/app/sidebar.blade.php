@@ -34,7 +34,6 @@
                 @if(auth()->user()->role->name === 'mozo')
                     <flux:navlist.group heading="Atención" class="grid">
                         <flux:navlist.item icon="plus-circle" :href="route('mozo.orders.create')" :current="request()->routeIs('mozo.orders.create')" wire:navigate>Nuevo Pedido</flux:navlist.item>
-                        <flux:navlist.item icon="clipboard-document-list" :href="route('mozo.orders.index')" :current="request()->routeIs('mozo.orders.index')" wire:navigate>Registro Pedidos</flux:navlist.item>
                     </flux:navlist.group>
                 @endif
 
@@ -46,8 +45,7 @@
 
                 @if(auth()->user()->role->name === 'cajero')
                     <flux:navlist.group heading="Caja" class="grid">
-                        <flux:navlist.item icon="banknotes" :href="route('orders.index')" :current="request()->routeIs('orders.index')" wire:navigate>Pedidos</flux:navlist.item>
-                        <flux:navlist.item icon="list-bullet" :href="route('orders.payments')" :current="request()->routeIs('orders.payments')" wire:navigate>Lista de Pagos</flux:navlist.item>
+                        <flux:navlist.item icon="rectangle-stack" :href="route('caja.dashboard')" :current="request()->routeIs('caja.*')" wire:navigate>Panel de Caja</flux:navlist.item>
                     </flux:navlist.group>
                 @endif
             </flux:navlist>

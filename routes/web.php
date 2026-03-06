@@ -56,24 +56,30 @@ Route::get('/ping', function () {
     Route::middleware(['role:cajero'])->group(function () {
         // ⚠️ Rutas específicas ANTES del resource para evitar conflicto con {order}
         Route::get('/orders/poll-caja', [OrderController::class, 'pollCaja'])->name('orders.poll-caja');
-        Route::get('/orders/payments', [OrderController::class, 'payments'])->name('orders.payments');
+        Route::get('/orders/payments',  [OrderController::class, 'payments'])->name('orders.payments');
         Route::post('/orders/pay-table', [OrderController::class, 'payTable'])->name('orders.pay-table');
         Route::resource('orders', OrderController::class)->only(['index', 'show']);
         Route::post('orders/{order}/pay', [OrderController::class, 'pay'])->name('orders.pay');
         Route::post('orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+        Route::get('caja/dashboard', [\App\Http\Controllers\CajaController::class, 'dashboard'])->name('caja.dashboard');
         Route::get('cash', [CashController::class, 'index'])->name('cash.index');
         Route::post('cash/open', [CashController::class, 'open'])->name('cash.open');
         Route::post('cash/close', [CashController::class, 'close'])->name('cash.close');
     });
 
-    // Rutas para Cocina
+    // Rutas de cocina accesibles tambien por cajero (dashboard unificado)
+    Route::middleware(['role:cocina|cajero'])->group(function () {
+        Route::get('kitchen/poll',                  [KitchenController::class, 'poll'])->name('kitchen.poll');
+        Route::post('kitchen/{order}/print',        [KitchenController::class, 'printOrder'])->name('kitchen.print');
+        Route::post('kitchen/{order}/mark-printed', [KitchenController::class, 'markPrinted'])->name('kitchen.markPrinted');
+    });
+
+    // Rutas exclusivas del rol cocina
     Route::middleware(['role:cocina'])->group(function () {
-        Route::get('kitchen', [KitchenController::class, 'index'])->name('kitchen.index');
-        Route::get('kitchen/poll', [KitchenController::class, 'poll'])->name('kitchen.poll');
-        Route::post('kitchen/{order}/print', [KitchenController::class, 'printOrder'])->name('kitchen.print');
-        Route::post('kitchen/{order}/prepare', [KitchenController::class, 'prepare'])->name('kitchen.prepare');
-        Route::post('kitchen/{order}/ready', [KitchenController::class, 'ready'])->name('kitchen.ready');
-        Route::get('kitchen/{order}', [KitchenController::class, 'show'])->name('kitchen.show');
+        Route::get('kitchen',                   [KitchenController::class, 'index'])->name('kitchen.index');
+        Route::post('kitchen/{order}/prepare',  [KitchenController::class, 'prepare'])->name('kitchen.prepare');
+        Route::post('kitchen/{order}/ready',    [KitchenController::class, 'ready'])->name('kitchen.ready');
+        Route::get('kitchen/{order}',           [KitchenController::class, 'show'])->name('kitchen.show');
     });
 
     

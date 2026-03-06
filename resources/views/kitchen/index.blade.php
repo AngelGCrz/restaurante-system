@@ -263,10 +263,36 @@
             items:              orderitems,
         };
 
-        const socket    = new WebSocket('ws://localhost:3000');
-        socket.onopen   = () => socket.send(JSON.stringify({ action: 'print-ticket', pedido: pedidobody }));
-        socket.onmessage = e => console.log('Respuesta:', JSON.parse(e.data));
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
 
+        // 1) Marcar en servidor como impresa; si falla, no ocultar la tarjeta.
+        try {
+            const markResp = await fetch(`/kitchen/${orderId}/mark-printed`, {
+                method:      'POST',
+                credentials: 'same-origin',
+                headers:     { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body:        JSON.stringify({}),
+            });
+
+            if (!markResp.ok) {
+                throw new Error('No se pudo marcar como impresa');
+            }
+        } catch (e) {
+            console.error('[mark-printed]', e);
+            alert('Error al marcar como impresa. Intenta de nuevo.');
+            return;
+        }
+
+        // 2) Enviar al agente de impresión (WebSocket) — no bloqueante
+        try {
+            const socket    = new WebSocket('ws://localhost:3000');
+            socket.onopen   = () => socket.send(JSON.stringify({ action: 'print-ticket', pedido: pedidobody }));
+            socket.onmessage = e => console.log('Respuesta:', JSON.parse(e.data));
+        } catch (e) {
+            console.warn('WebSocket print failed', e);
+        }
+
+        // 3) Ocultar la tarjeta sólo después de que el servidor confirmó el marcado
         orderCard.style.transition = 'opacity 0.4s ease';
         orderCard.style.opacity    = '0';
         setTimeout(() => { orderCard.style.display = 'none'; }, 400);

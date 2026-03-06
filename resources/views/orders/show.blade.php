@@ -1,7 +1,7 @@
 <x-layouts.app>
     <div class="flex h-full w-full flex-1 flex-col gap-4 p-4">
         <div class="flex items-center gap-4">
-            <flux:button variant="subtle" icon="arrow-left" href="{{ auth()->user()->role->name === 'mozo' ? route('mozo.orders.create') : route('orders.index') }}" />
+            <flux:button variant="subtle" icon="arrow-left" href="{{ auth()->user()->role->name === 'mozo' ? route('mozo.orders.index') : route('caja.dashboard') }}" />
             <h1 class="text-2xl font-bold">Detalle de Pedido #{{ $order->id }}</h1>
             @if($order->type === 'llevar')
                 <span class="ml-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">🥡 Para llevar</span>
@@ -22,35 +22,63 @@
                     <table class="w-full text-left">
                         <thead>
                             <tr class="border-b border-zinc-200 dark:border-zinc-700">
-                                <th class="pb-3 font-semibold">Producto </th>
-                                <th class="pb-3 font-semibold"> Cant </th>
-                                <th class="pb-3 font-semibold text-right"> P.Unit</th>
-                                <th class="pb-3 font-semibold text-right"> SubT</th>
+                                <th class="pb-3 font-semibold">Producto</th>
+                                <th class="pb-3 font-semibold">Cant</th>
+                                <th class="pb-3 font-semibold text-right">P.Unit</th>
+                                <th class="pb-3 font-semibold text-right">SubT</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-    @foreach($order->items as $item)
-        <tr>
-            <td class="py-3">
-                {{ $item->product->name }}
 
-                @if($item->comment)
-                    <p class="mt-1 text-sm text-blue-600 font-medium">
-                        📝 {{ $item->comment }}
-                    </p>
-                @endif
-            </td>
-            <td class="py-3">{{ $item->quantity }}</td>
-            <td class="py-3 text-right">${{ number_format($item->price, 2) }}</td>
-            <td class="py-3 text-right">${{ number_format($item->price * $item->quantity, 2) }}</td>
-        </tr>
-    @endforeach
-</tbody>
-
-                        <tfoot>
+                            {{-- Items del pedido principal --}}
+                            @foreach($order->items as $item)
                             <tr>
-                                <td colspan="3" class="pt-4 text-right font-bold text-lg">Total:</td>
-                                <td class="pt-4 text-right font-bold text-lg text-primary-600">${{ number_format($orderItemsTotal, 2) }}</td>
+                                <td class="py-3">
+                                    {{ $item->product->name }}
+                                    @if($item->comment)
+                                        <p class="mt-1 text-sm text-blue-600 font-medium">📝 {{ $item->comment }}</p>
+                                    @endif
+                                </td>
+                                <td class="py-3">{{ $item->quantity }}</td>
+                                <td class="py-3 text-right">S/ {{ number_format($item->price, 2) }}</td>
+                                <td class="py-3 text-right">S/ {{ number_format($item->price * $item->quantity, 2) }}</td>
+                            </tr>
+                            @endforeach
+
+                            {{-- Items de órdenes hijas (agregados posteriormente) --}}
+                            @foreach($order->childOrders->where('status', '!=', 'cancelado') as $child)
+                                <tr>
+                                    <td colspan="4" class="pt-3 pb-1">
+                                        <span class="text-xs font-semibold text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full">
+                                            ➕ Agregado — Orden #{{ $child->id }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                @foreach($child->items as $item)
+                                <tr class="bg-yellow-50/30 dark:bg-yellow-900/10">
+                                    <td class="py-2 pl-4">
+                                        {{ $item->product->name }}
+                                        @if($item->comment)
+                                            <p class="mt-0.5 text-sm text-blue-600 font-medium">📝 {{ $item->comment }}</p>
+                                        @endif
+                                    </td>
+                                    <td class="py-2">{{ $item->quantity }}</td>
+                                    <td class="py-2 text-right">S/ {{ number_format($item->price, 2) }}</td>
+                                    <td class="py-2 text-right">S/ {{ number_format($item->price * $item->quantity, 2) }}</td>
+                                </tr>
+                                @endforeach
+                            @endforeach
+
+                        </tbody>
+                        <tfoot>
+                            @php
+                                $totalCompleto = $order->items->sum(fn($it) => $it->price * $it->quantity)
+                                    + $order->childOrders->where('status', '!=', 'cancelado')
+                                        ->sum(fn($child) => $child->items->sum(fn($it) => $it->price * $it->quantity));
+                            @endphp
+                            <tr class="border-t-2 border-zinc-300 dark:border-zinc-600">
+                                <td colspan="3" class="pt-4 text-right font-bold text-lg dark:text-white">Total:</td>
+                                <td class="pt-4 text-right font-bold text-lg text-green-600 dark:text-green-400">S/ {{ number_format($totalCompleto, 2) }}</td>
                             </tr>
                         </tfoot>
                     </table>

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -14,11 +13,6 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -26,31 +20,6 @@ class User extends Authenticatable
         'role_id',
     ];
 
-    public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo
-    {
-        return $this->belongsTo(Role::class);
-    }
-
-    public function isAdmin(): bool
-    {
-        return $this->role->name === 'admin';
-    }
-
-    public function isCajero(): bool
-    {
-        return $this->role->name === 'cajero';
-    }
-
-    public function isCocina(): bool
-    {
-        return $this->role->name === 'cocina';
-    }
-
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'two_factor_secret',
@@ -58,22 +27,44 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
         ];
     }
 
+    // ─── Relaciones ───────────────────────────────────────────────────────────
+
+    public function role(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    // ─── Helpers de rol ───────────────────────────────────────────────────────
+
     /**
-     * Get the user's initials
+     * Comprueba si el usuario tiene uno o varios roles.
+     *
+     * Uso: $user->hasRole('admin')
+     *       $user->hasRole(['admin', 'cajero'])
      */
+    public function hasRole(string|array $roles): bool
+    {
+        $roles = (array) $roles;
+
+        return in_array($this->role?->name, $roles, true);
+    }
+
+    public function isAdmin(): bool    { return $this->hasRole('admin'); }
+    public function isCajero(): bool   { return $this->hasRole('cajero'); }
+    public function isCocina(): bool   { return $this->hasRole('cocina'); }
+    public function isMozo(): bool     { return $this->hasRole('mozo'); }
+
+    // ─── Utilidades ───────────────────────────────────────────────────────────
+
+    /** Devuelve las iniciales del nombre (máx. 2 letras). */
     public function initials(): string
     {
         return Str::of($this->name)

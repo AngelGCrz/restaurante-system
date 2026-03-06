@@ -68,11 +68,11 @@
                         : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
                     @click="addProduct(product)"
                 >
-                    <div class="absolute right-2 top-2" x-show="selectedMap[mapKey(product)]" x-cloak>
-                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[mapKey(product)]?.quantity"></span>
+                    <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
+                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
                     </div>
                     <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
-                    <p class="text-xs text-zinc-500" x-text="currency(entradaPrice(product))"></p>
+                    <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
                     <span class="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700 mt-2" x-show="product.sold_out" x-cloak>Agotado</span>
                     <p class="text-xs text-rose-600 mt-2" x-show="!product.sold_out && product.low_stock" x-cloak x-text="'Quedan ' + (product.stock ?? 0)"></p>
                 </button>
@@ -91,8 +91,8 @@
                         : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
                     @click="addProduct(product)"
                 >
-                    <div class="absolute right-2 top-2" x-show="selectedMap[mapKey(product)]" x-cloak>
-                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[mapKey(product)]?.quantity"></span>
+                    <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
+                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
                     </div>
                     <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
                     <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
@@ -117,8 +117,8 @@
                         : 'relative flex flex-col items-center justify-center rounded-md border border-zinc-200 bg-white p-2 text-center shadow-sm transition active:scale-95 dark:border-zinc-700 dark:bg-zinc-900'"
                     @click="addProduct(product)"
                 >
-                    <div class="absolute right-2 top-2" x-show="selectedMap[mapKey(product)]" x-cloak>
-                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[mapKey(product)]?.quantity"></span>
+                    <div class="absolute right-2 top-2" x-show="selectedMap[product.id]" x-cloak>
+                        <span class="inline-flex min-w-[32px] justify-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white" x-text="selectedMap[product.id]?.quantity"></span>
                     </div>
                     <p class="font-semibold text-sm leading-tight" x-text="product.name"></p>
                     <p class="text-xs text-zinc-500" x-text="currency(product.price)"></p>
@@ -142,16 +142,16 @@
                         <button type="button" class="text-sm text-rose-600 hover:underline" @click="clearProducts" x-show="selectedList.length" x-cloak>Vaciar</button>
                     </div>
                     <div class="space-y-3" x-show="selectedList.length" x-cloak>
-                        <template x-for="item in selectedList" :key="item.mapKey">
+                        <template x-for="item in selectedList" :key="item.id">
                             <div class="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-700">
                                 <div>
                                     <p class="font-medium" x-text="item.name"></p>
                                     <p class="text-xs text-zinc-500" x-text="currency(item.price)"></p>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="decrement(item.mapKey)">-</button>
+                                    <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="decrement(item.id)">-</button>
                                     <span class="min-w-[24px] text-center text-sm font-semibold" x-text="item.quantity"></span>
-                                    <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="increment(item.mapKey)">+</button>
+                                    <button type="button" class="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-lg leading-none dark:border-zinc-600" @click="increment(item.id)">+</button>
                                     <button type="button" class="text-xs text-blue-600 underline flex items-center gap-1" @click="openCommentModal(item)">
                                     <i class="bi bi-chat-dots"></i>
                                 </button>
@@ -162,17 +162,10 @@
                     </div>
                     <p class="text-sm text-zinc-500" x-show="!selectedList.length">Toca un producto para agregarlo al pedido.</p>
 
-                    {{-- Total --}}
-                    <div x-show="selectedList.length" x-cloak class="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                        <span class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Total</span>
-                        <span class="text-lg font-bold text-red-600 dark:text-red-400" x-text="currency(previewTotal)"></span>
-                    </div>
-
-                    <template x-for="(item, index) in selectedList" :key="`hidden-${item.mapKey}`">
+                    <template x-for="(item, index) in selectedList" :key="`hidden-${item.id}`">
                         <div>
                             <input type="hidden" :name="`items[${index}][product_id]`" :value="item.id">
                             <input type="hidden" :name="`items[${index}][quantity]`" :value="item.quantity">
-                            <input type="hidden" :name="`items[${index}][price]`" :value="item.price">
                             <input type="hidden" :name="`items[${index}][comment]`" :value="item.comment || ''">
                         </div>
                     </template>
@@ -272,327 +265,6 @@
         </form>
     </div>
 
-    <script>
-        // Simple toast helper for non-blocking notifications
-        window.showToast = function(message, variant = 'error') {
-            const containerId = 'app-toasts-container';
-            let container = document.getElementById(containerId);
-            if (!container) {
-                container = document.createElement('div');
-                container.id = containerId;
-                container.style.position = 'fixed';
-                container.style.right = '16px';
-                container.style.top = '16px';
-                container.style.zIndex = 9999;
-                document.body.appendChild(container);
-            }
-
-            const toast = document.createElement('div');
-            toast.textContent = message;
-            toast.style.marginTop = '8px';
-            toast.style.padding = '10px 14px';
-            toast.style.borderRadius = '8px';
-            toast.style.color = '#fff';
-            toast.style.fontSize = '13px';
-            toast.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
-            toast.style.opacity = '0';
-            toast.style.transition = 'opacity 200ms ease, transform 200ms ease';
-
-            if (variant === 'success') {
-                toast.style.background = '#16a34a';
-            } else {
-                toast.style.background = '#dc2626';
-            }
-
-            container.appendChild(toast);
-
-            // force reflow then show
-            // eslint-disable-next-line no-unused-expressions
-            toast.offsetWidth;
-            toast.style.opacity = '1';
-            toast.style.transform = 'translateY(0)';
-
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-8px)';
-                setTimeout(() => container.removeChild(toast), 300);
-            }, 3000);
-        };
-
-        function orderFormComponent({ totalTables = 0, presetTables = [], presetSelection = [], tableSelectUrl = '', products = [], categories = [], initialServiceType = 'mesa', initialCustomerName = '', initialComment = '' }) {
-            return {
-                persistKey: 'order_form_draft',
-                serviceType: initialServiceType || 'mesa',
-                customerName: initialCustomerName || '',
-                comment: initialComment || '',
-                showCommentModal: false,
-                currentCommentItem: null,
-                currentCommentText: '',
-                totalTables,
-                tableNumbers: presetTables.length ? presetTables : Array.from({ length: totalTables }, (_, i) => i + 1),
-                selectedTables: presetSelection,
-                tableSelectUrl,
-                products,
-                categories,
-                currentCategory: 1,
-                selectedMap: {},
-
-                // ─── UTILIDADES DE PRECIO ───────────────────────────────────────────────
-
-                mapKey(product) {
-                    // Entradas (cat 4): clave incluye la categoría activa para que
-                    // el mismo producto pueda tener distinto precio según contexto.
-                    return product.category_id == 4
-                        ? product.id + '_' + this.currentCategory
-                        : String(product.id);
-                },
-
-                entradaPrice(product) {
-                    const isCeviche = product.name.toLowerCase().includes('ceviche');
-                    if (this.currentCategory === 1) return 0;
-                    if (this.currentCategory === 2) return isCeviche ? 2 : 1;
-                    if (this.currentCategory === 5) return isCeviche ? 5 : 4;
-                    return Number(product.price);
-                },
-
-                computePrice(product) {
-                    let price = product.category_id == 4
-                        ? this.entradaPrice(product)
-                        : Number(product.price);
-                    if (this.serviceType === 'llevar' && price > 9) price += 1;
-                    return price;
-                },
-
-                // Recalcula el precio de una entrada a partir de su mapKey guardada
-                recalcEntradaPrice(product, catId) {
-                    const isCeviche = product.name.toLowerCase().includes('ceviche');
-                    if (catId === 1) return 0;
-                    if (catId === 2) return isCeviche ? 2 : 1;
-                    if (catId === 5) return isCeviche ? 5 : 4;
-                    return Number(product.price);
-                },
-
-                // ─── MAPA REACTIVO ──────────────────────────────────────────────────────
-                // SIEMPRE usar _setMap / _delMap para que Alpine detecte el cambio.
-
-                _setMap(key, value) {
-                    this.selectedMap = { ...this.selectedMap, [key]: value };
-                },
-                _delMap(key) {
-                    const m = { ...this.selectedMap };
-                    delete m[key];
-                    this.selectedMap = m;
-                },
-
-                // ─── CICLO DE VIDA ──────────────────────────────────────────────────────
-
-                init() {
-                    if (sessionStorage.getItem('order_just_submitted')) {
-                        sessionStorage.removeItem('order_just_submitted');
-                        this.saveDraft();
-                        return;
-                    }
-
-                    const saved = this.loadDraft();
-                    if (saved) {
-                        this.serviceType     = saved.serviceType || this.serviceType;
-                        this.customerName    = saved.customerName || '';
-                        this.comment         = saved.comment || '';
-                        if (!this.selectedTables.length && Array.isArray(saved.selectedTables)) {
-                            this.selectedTables = saved.selectedTables;
-                        }
-
-                        // Reconstruir selectedMap validando y recalculando precios
-                        const rebuilt = {};
-                        Object.entries(saved.selectedMap || {}).forEach(([key, item]) => {
-                            const product = this.products.find(p => p.id == item.id);
-                            if (!product) return;
-                            if (product.sold_out) return;
-                            if (!product.allow_negative && typeof product.stock === 'number' && item.quantity > product.stock) return;
-
-                            // Recalcular precio desde el catálogo actual
-                            let price;
-                            if (product.category_id == 4) {
-                                const catId = parseInt(key.split('_')[1]);
-                                price = this.recalcEntradaPrice(product, catId);
-                            } else {
-                                price = Number(product.price);
-                            }
-                            if (this.serviceType === 'llevar' && price > 9) price += 1;
-
-                            rebuilt[key] = { ...item, price, mapKey: key };
-                        });
-                        this.selectedMap = rebuilt;
-                    }
-
-                    if (this.serviceType !== 'mesa') this.selectedTables = [];
-                    this.saveDraft();
-                },
-
-                loadDraft() {
-                    try {
-                        const raw = localStorage.getItem(this.persistKey);
-                        return raw ? JSON.parse(raw) : null;
-                    } catch { return null; }
-                },
-
-                saveDraft() {
-                    localStorage.setItem(this.persistKey, JSON.stringify({
-                        serviceType:    this.serviceType,
-                        selectedTables: this.selectedTables,
-                        selectedMap:    this.selectedMap,
-                        customerName:   this.customerName,
-                        comment:        this.comment,
-                    }));
-                },
-
-                // ─── SELECCIÓN ──────────────────────────────────────────────────────────
-
-                clearProducts() {
-                    this.selectedMap = {};
-                    this.saveDraft();
-                },
-
-                addProduct(product) {
-                    if (product.sold_out) return;
-                    const key      = this.mapKey(product);
-                    const price    = this.computePrice(product);
-                    const existing = this.selectedMap[key];
-                    const newQty   = (existing ? existing.quantity : 0) + 1;
-
-                    if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
-                        showToast('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
-                        return;
-                    }
-
-                    this._setMap(key, {
-                        ...(existing ?? { ...product, comment: '' }),
-                        id: product.id,
-                        quantity: newQty,
-                        price,
-                        mapKey: key,
-                    });
-                    this.saveDraft();
-                },
-
-                increment(key) {
-                    const item = this.selectedMap[key];
-                    if (!item) return;
-                    const product = this.products.find(p => p.id == item.id) || item;
-                    const newQty  = item.quantity + 1;
-                    if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
-                        showToast('Stock insuficiente para ' + item.name + '. Disponible: ' + product.stock);
-                        return;
-                    }
-                    this._setMap(key, { ...item, quantity: newQty });
-                    this.saveDraft();
-                },
-
-                decrement(key) {
-                    const item = this.selectedMap[key];
-                    if (!item) return;
-                    if (item.quantity <= 1) {
-                        this._delMap(key);
-                    } else {
-                        this._setMap(key, { ...item, quantity: item.quantity - 1 });
-                    }
-                    this.saveDraft();
-                },
-
-                // ─── TIPO DE SERVICIO ────────────────────────────────────────────────────
-
-                handleTypeChange() {
-                    if (this.serviceType !== 'mesa') this.selectedTables = [];
-
-                    // Recalcular precios de todos los ítems ya seleccionados
-                    const newMap = {};
-                    Object.entries(this.selectedMap).forEach(([key, item]) => {
-                        const product = this.products.find(p => p.id == item.id);
-                        if (!product) return;
-                        let basePrice;
-                        if (product.category_id == 4) {
-                            const catId = parseInt(key.split('_')[1]);
-                            basePrice = this.recalcEntradaPrice(product, catId);
-                        } else {
-                            basePrice = Number(product.price);
-                        }
-                        if (this.serviceType === 'llevar' && basePrice > 9) basePrice += 1;
-                        newMap[key] = { ...item, price: basePrice };
-                    });
-                    this.selectedMap = newMap;
-                    this.saveDraft();
-                },
-
-                // ─── MESAS ───────────────────────────────────────────────────────────────
-
-                isSelected(table)  { return this.selectedTables.includes(table); },
-                clearSelection()   { this.selectedTables = []; this.saveDraft(); },
-
-                selectionLabel() {
-                    if (this.serviceType !== 'mesa') return 'Pedido para llevar';
-                    if (!this.selectedTables.length)  return '<span style="color:red">SELECCIONA MESAS</span>';
-                    const prefix = this.selectedTables.length === 1 ? 'Mesa' : 'Mesas';
-                    return `${prefix} ${this.selectedTables.join(' + ')}`;
-                },
-
-                goToTableSelector() {
-                    this.saveDraft();
-                    const params = new URLSearchParams();
-                    this.selectedTables.forEach(t => params.append('tables[]', t));
-                    window.location.href = params.toString()
-                        ? `${this.tableSelectUrl}?${params.toString()}`
-                        : this.tableSelectUrl;
-                },
-
-                // ─── MODAL COMENTARIO ────────────────────────────────────────────────────
-
-                openCommentModal(item) {
-                    this.currentCommentItem = item;
-                    this.currentCommentText = item.comment || '';
-                    this.showCommentModal   = true;
-                },
-                closeCommentModal() {
-                    this.showCommentModal   = false;
-                    this.currentCommentItem = null;
-                    this.currentCommentText = '';
-                },
-                saveItemComment() {
-                    if (this.currentCommentItem) {
-                        this._setMap(this.currentCommentItem.mapKey, {
-                            ...this.selectedMap[this.currentCommentItem.mapKey],
-                            comment: this.currentCommentText,
-                        });
-                        this.saveDraft();
-                    }
-                    this.closeCommentModal();
-                },
-
-                // ─── COMPUTED ────────────────────────────────────────────────────────────
-
-                get selectedList() {
-                    return Object.values(this.selectedMap);
-                },
-                get previewTotal() {
-                    return Object.values(this.selectedMap)
-                        .reduce((sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0), 0);
-                },
-                get itemCount() {
-                    return Object.values(this.selectedMap)
-                        .reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-                },
-
-                get filteredProducts() {
-                    if (!this.currentCategory) return this.products;
-                    return this.products.filter(p => p.category_id == this.currentCategory);
-                },
-
-                currency(value) {
-                    return 'S/ ' + Number(value).toFixed(2);
-                },
-            };
-        }
-    </script>
-    {{-- Limpiar draft ANTES de que Alpine inicialice --}}
 {{-- @if(session('success')) --}}
 {{-- <script>
     localStorage.removeItem('order_form_draft');

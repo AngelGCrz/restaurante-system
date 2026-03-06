@@ -6,16 +6,25 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Verifica que el usuario autenticado tenga uno de los roles indicados.
+ *
+ * Uso en rutas (un rol):      ->middleware('role:admin')
+ * Uso en rutas (multi-rol):   ->middleware('role:admin|cajero')
+ */
 class CheckRole
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
-    public function handle(Request $request, Closure $next, string $role): Response
+    public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (! $request->user() || $request->user()->role->name !== $role) {
+        // Soporte para sintaxis pipe: role:admin|cajero => $roles = ['admin|cajero']
+        // Aplanamos en caso de que vengan como un único string con pipes.
+        $allowed = collect($roles)
+            ->flatMap(fn ($r) => explode('|', $r))
+            ->map(fn ($r) => trim($r))
+            ->filter()
+            ->all();
+
+        if (! $request->user() || ! $request->user()->hasRole($allowed)) {
             abort(403, 'No tienes permiso para acceder a esta sección.');
         }
 
