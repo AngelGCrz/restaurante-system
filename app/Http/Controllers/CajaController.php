@@ -31,11 +31,14 @@ class CajaController extends Controller
         // ── Tab Historial: pagos y cancelaciones ──────────────────────────────
         $historial = Order::whereIn('status', ['pagado', 'cancelado'])
             ->whereDate('updated_at', Carbon::today())
+            ->with('items')                          // ← cargar items
             ->orderByDesc('updated_at')
             ->get();
 
         $countPagado    = $historial->where('status', 'pagado')->count();
-        $totalPagado    = $historial->where('status', 'pagado')->sum('total');
+        // Total calculado desde ítems reales, no desde el campo total (que puede estar inflado)
+        $totalPagado    = $historial->where('status', 'pagado')
+            ->sum(fn ($o) => $o->items->sum(fn ($it) => $it->price * $it->quantity));
         $countCancelado = $historial->where('status', 'cancelado')->count();
 
         // ── Tab Caja ──────────────────────────────────────────────────────────
@@ -43,9 +46,9 @@ class CajaController extends Controller
             ->whereNull('closed_at')
             ->first();
 
-        $ventasHoy = Order::whereDate('created_at', Carbon::today())
-            ->where('status', 'pagado')
-            ->sum('total');
+        // Calculado desde ítems reales para evitar totales inflados
+        $ventasHoy = $historial->where('status', 'pagado')
+            ->sum(fn ($o) => $o->items->sum(fn ($it) => $it->price * $it->quantity));
 
         $hashCocina = md5(
             $pedidosCocina->pluck('id')->sort()->values()->join(',')

@@ -72,14 +72,41 @@
                         </tbody>
                         <tfoot>
                             @php
-                                $totalCompleto = $order->items->sum(fn($it) => $it->price * $it->quantity)
+                                $totalEstaOrden = $order->items->sum(fn($it) => $it->price * $it->quantity);
+                                $totalSesion    = $totalEstaOrden
                                     + $order->childOrders->where('status', '!=', 'cancelado')
                                         ->sum(fn($child) => $child->items->sum(fn($it) => $it->price * $it->quantity));
+                                $tieneHijos = $order->childOrders->where('status', '!=', 'cancelado')->isNotEmpty();
                             @endphp
-                            <tr class="border-t-2 border-zinc-300 dark:border-zinc-600">
-                                <td colspan="3" class="pt-4 text-right font-bold text-lg dark:text-white">Total:</td>
-                                <td class="pt-4 text-right font-bold text-lg text-green-600 dark:text-green-400">S/ {{ number_format($totalCompleto, 2) }}</td>
+
+                            {{-- Total solo de esta orden --}}
+                            <tr class="border-t border-zinc-200 dark:border-zinc-600">
+                                <td colspan="3" class="pt-3 text-right text-sm text-zinc-500 dark:text-zinc-400">
+                                    Total orden #{{ $order->id }}:
+                                </td>
+                                <td class="pt-3 text-right text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                    S/ {{ number_format($totalEstaOrden, 2) }}
+                                </td>
                             </tr>
+
+                            {{-- Total sesión completa (solo si hay hijos) --}}
+                            @if($tieneHijos)
+                            <tr class="border-t-2 border-zinc-300 dark:border-zinc-600">
+                                <td colspan="3" class="pt-3 text-right font-bold text-lg dark:text-white">
+                                    Total sesión mesa:
+                                </td>
+                                <td class="pt-3 text-right font-bold text-lg text-green-600 dark:text-green-400">
+                                    S/ {{ number_format($totalSesion, 2) }}
+                                </td>
+                            </tr>
+                            @else
+                            <tr class="border-t-2 border-zinc-300 dark:border-zinc-600">
+                                <td colspan="3" class="pt-3 text-right font-bold text-lg dark:text-white">Total:</td>
+                                <td class="pt-3 text-right font-bold text-lg text-green-600 dark:text-green-400">
+                                    S/ {{ number_format($totalEstaOrden, 2) }}
+                                </td>
+                            </tr>
+                            @endif
                         </tfoot>
                     </table>
                 </div>
@@ -161,7 +188,7 @@
                     @endif
                     @if($order->status === 'pendiente' && auth()->user()->role->name === 'mozo' && is_null($order->origin_order_id))
                         <div class="mt-6">
-                            <flux:button href="{{ route('mozo.orders.add-items', $order) }}" variant="primary" class="w-full">Agregar Productos</flux:button>
+                            <flux:button href="{{ route('mozo.orders.add-items', $order) }}" variant="primary" class="w-full">➕ Agregar Nueva Orden</flux:button>
                         </div>
                     @endif
                 </div>

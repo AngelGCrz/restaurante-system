@@ -34,6 +34,8 @@
                 @if(auth()->user()->role->name === 'mozo')
                     <flux:navlist.group heading="Atención" class="grid">
                         <flux:navlist.item icon="plus-circle" :href="route('mozo.orders.create')" :current="request()->routeIs('mozo.orders.create')" wire:navigate>Nuevo Pedido</flux:navlist.item>
+                        <flux:navlist.item icon="clipboard-document-list" :href="route('mozo.orders.index')" :current="request()->routeIs('mozo.orders.index')" wire:navigate>Mis Pedidos</flux:navlist.item>
+                        <flux:navlist.item icon="table-cells" :href="route('mozo.tables.select')" :current="request()->routeIs('mozo.tables.select')" wire:navigate>Agregar Orden</flux:navlist.item>
                     </flux:navlist.group>
                 @endif
 

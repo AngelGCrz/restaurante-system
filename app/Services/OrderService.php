@@ -66,7 +66,7 @@ class OrderService
             $child = Order::create([
                 'user_id'         => $userId,
                 'customer_name'   => $parent->customer_name,
-                'comment'         => 'Agregado a la orden #'.$parent->id,
+                'comment'         => null,
                 'type'            => ($data['takeaway'] ?? false) ? 'llevar' : $parent->type,
                 'table_numbers'   => $parent->table_numbers,
                 'total'           => 0,
@@ -76,11 +76,6 @@ class OrderService
 
             $childTotal = $this->attachItems($child, $data['items'], $stockEnabled, $stockAllowNegative);
             $child->update(['total' => $childTotal]);
-
-            // Incrementar total del padre solo si son del mismo tipo
-            if ($child->type === $parent->type) {
-                $parent->increment('total', $childTotal);
-            }
 
             return $child;
         });
@@ -92,6 +87,7 @@ class OrderService
 
     public function payOrder(Order $order, string $paymentMethod, string $receiptType): void
     {
+        // Cobra SOLO esta orden. Padre e hijos se cobran de forma independiente.
         $order->update([
             'payment_method' => $paymentMethod,
             'receipt_type'   => $receiptType,
@@ -146,10 +142,8 @@ class OrderService
             });
         }
 
-        // Si es orden hija, descontar del padre
-        if ($order->origin_order_id && $order->type !== 'llevar') {
-            $order->originOrder?->decrement('total', $order->total);
-        }
+        // NOTA: Ya no decrementamos el total del padre cuando se cancela un hijo,
+        // porque el padre ahora solo registra sus propios ítems (no acumula hijos).
     }
 
     // ──────────────────────────────────────────────────────────────────────────

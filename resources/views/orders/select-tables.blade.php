@@ -1,101 +1,149 @@
 <x-layouts.app>
     <div class="flex h-full w-full flex-1 flex-col gap-4 p-4">
+
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold">Seleccionar Mesas</h1>
-                <p class="text-sm text-zinc-600">Toca las mesas para elegir una o varias. Luego confirma para continuar el pedido.</p>
+                <h1 class="text-2xl font-bold">Seleccionar Mesa</h1>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                    Mesa libre → nuevo pedido &nbsp;|&nbsp; Mesa tuya activa → agregar nueva orden
+                </p>
             </div>
-            <flux:button href="{{ route('mozo.orders.create') }}" variant="ghost" icon="arrow-left"  style="color: red; font-size: 14px;">Volver al pedido</flux:button>
+            <a href="{{ route('mozo.orders.index') }}"
+               class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-red-600 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-red-400">
+                ← Volver
+            </a>
         </div>
 
-        <div class="rounded-xl border border-dashed border-zinc-300 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
-             x-data="tableSelector({
-                 baseRedirect: '{{ route('mozo.orders.create') }}',
-                 tableNumbers: @json($tableNumbers),
-                 selected: @json($selectedTables),
-                 busy: @json($busyTables ?? []),
-             })">
-            <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <div class="space-y-1">
+        {{-- Leyenda --}}
+        <div class="flex flex-wrap gap-3 text-xs font-medium">
+            <span class="flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1 dark:border-zinc-600 dark:bg-zinc-800">
+                <span class="h-3 w-3 rounded-full bg-white border-2 border-zinc-400"></span> Libre
+            </span>
+            <span class="flex items-center gap-1.5 rounded-full border border-amber-400 bg-white px-3 py-1 text-amber-700 dark:border-amber-500 dark:bg-zinc-800 dark:text-amber-300">
+                <span class="h-3 w-3 rounded-full bg-amber-400"></span> Tu mesa activa → agregar orden
+            </span>
+            <span class="flex items-center gap-1.5 rounded-full border border-red-300 bg-white px-3 py-1 text-red-600 dark:border-red-500 dark:bg-zinc-800 dark:text-red-400">
+                <span class="h-3 w-3 rounded-full bg-red-400"></span> Ocupada por otro mozo
+            </span>
+        </div>
+
+        <div
+            class="rounded-xl border border-dashed border-zinc-300 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+            x-data="mesaSelector()"
+            x-init="init()"
+        >
+            {{-- Toolbar --}}
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
                     <p class="text-sm font-medium">{{ $tableCount }} mesas configuradas</p>
-                    <p x-html="label()"></p>
+                    {{-- Label selección --}}
+                    <p class="mt-1 text-sm" x-cloak>
+                        <span x-show="selected.length === 0" class="font-semibold text-red-600">Sin mesas seleccionadas</span>
+                        <span x-show="selected.length > 0" class="font-bold text-blue-700 dark:text-blue-300"
+                              x-text="(selected.length === 1 ? 'Mesa' : 'Mesas') + ' ' + selected.join(' + ')"></span>
+                    </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <flux:button variant="ghost" icon="arrow-path" type="button" x-on:click="clearSelection">Limpiar</flux:button>
-                    <flux:button variant="primary" icon="check" type="button" x-on:click="confirmSelection" x-bind:disabled="selected.length === 0">Confirmar selección</flux:button>
+                    <button type="button"
+                            class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800"
+                            @click="selected = []">
+                        🔄 Limpiar
+                    </button>
+                    <button type="button"
+                            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            :disabled="selected.length === 0"
+                            @click="confirmar()">
+                        ✓ Confirmar selección
+                    </button>
                 </div>
             </div>
 
+            {{-- Grid de mesas --}}
             <div class="max-h-[60vh] overflow-y-auto">
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                    <template x-for="table in tableNumbers" :key="table">
-                        <button
-                            type="button"
-                            class="flex h-20 items-center justify-center rounded-lg border text-sm font-semibold transition"
-                            :disabled="isBusy(table)"
-                            :class="isBusy(table)
-                                ? 'cursor-not-allowed border-red-300 bg-red-50 text-red-600 dark:border-red-400 dark:bg-red-900/30 dark:text-red-100'
-                                : isSelected(table)
-                                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/30 dark:text-primary-100'
-                                    : 'border-zinc-200 bg-white text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100'"
-                            x-on:click="toggle(table)"
-                        >
-                            Mesa <span class="ml-1" x-text="table"></span>
-                        </button>
-                    </template>
+                    @foreach($tableNumbers as $num)
+                    @php
+                        $isOtherBusy = in_array($num, $otherBusyTables ?? []);
+                        $isMyTable   = array_key_exists($num, $myTableOrderMap ?? []);
+                        $myOrderId   = $myTableOrderMap[$num] ?? null;
+                    @endphp
+
+                    <button
+                        type="button"
+                        @if($isOtherBusy) disabled @endif
+                        @if($isMyTable)
+                            {{-- Mesa propia activa: ir directo a agregar orden --}}
+                            @click="window.location.href = '{{ route('mozo.orders.add-items', $myOrderId) }}'"
+                            class="flex h-20 flex-col items-center justify-center rounded-xl border-2 border-amber-400 bg-white text-amber-700 font-semibold text-sm transition hover:bg-amber-50 dark:border-amber-500 dark:bg-zinc-800 dark:text-amber-300"
+                        @elseif($isOtherBusy)
+                            class="flex h-20 flex-col items-center justify-center rounded-xl border-2 border-red-300 bg-white text-red-400 font-semibold text-sm cursor-not-allowed dark:border-red-600 dark:bg-zinc-800 dark:text-red-400"
+                        @else
+                            {{-- Mesa libre: toggle selección --}}
+                            @click="toggleMesa({{ $num }})"
+                            :class="selected.includes({{ $num }}) ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-900/30 dark:text-blue-100' : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100'"
+                            class="flex h-20 flex-col items-center justify-center rounded-xl border-2 font-semibold text-sm transition"
+                        @endif
+                    >
+                        <span>Mesa {{ $num }}</span>
+                        <span class="mt-1 text-xs font-normal">
+                            @if($isOtherBusy)   🔒 Ocupada
+                            @elseif($isMyTable) ✏️ Agregar orden
+                            @endif
+                        </span>
+                        @if(!$isOtherBusy && !$isMyTable)
+                        <span class="mt-1 text-xs font-normal" x-cloak
+                              x-show="selected.includes({{ $num }})" x-text="'✓ Seleccionada'">
+                        </span>
+                        @endif
+                    </button>
+                    @endforeach
                 </div>
-                <p x-show="tableNumbers.length === 0" class="py-6 text-center text-sm text-red-600">Configura la cantidad total de mesas en Administración.</p>
+
+                @if(count($tableNumbers) === 0)
+                    <p class="py-6 text-center text-sm text-red-600">
+                        Configura la cantidad total de mesas en Administración.
+                    </p>
+                @endif
             </div>
         </div>
     </div>
 
     <script>
-        function tableSelector({ baseRedirect, tableNumbers = [], selected = [], busy = [] }) {
-            return {
-                baseRedirect,
-                tableNumbers,
-                selected,
-                busy,
-                isSelected(table) {
-                    return this.selected.includes(table);
-                },
-                isBusy(table) {
-                    return this.busy.includes(table);
-                },
-                toggle(table) {
-                    if (this.isBusy(table)) return;
-                    if (this.isSelected(table)) {
-                        this.selected = this.selected.filter((t) => t !== table);
-                    } else {
-                        this.selected = [...this.selected, table];
-                    }
-                },
-                clearSelection() {
-                    this.selected = [];
-                },
+    function mesaSelector() {
+        return {
+            selected: @json($selectedTables ?? []),
 
-                label() {
-                    if (!this.selected.length) {
-                        return '<span style="font-size: 18px; color: red; background-color: yellow; padding: 2px 6px; border-radius: 6px;">Sin mesas seleccionadas</span>';
-                    
-                    }
-                
-                    const prefix = this.selected.length === 1 ? 'Mesa' : 'Mesas';
-                
-                    return `
-                        <span style="font-size: 20px; font-weight: bold; color: red; background-color: yellow; padding: 2px 6px; border-radius: 6px;">
-                            ${prefix} ${this.selected.join(' + ')}
-                        </span>
-                    `;
-                },
+            init() {
+                // noop — todo lo necesario está en Blade
+            },
 
+            toggleMesa(num) {
+                if (this.selected.includes(num)) {
+                    this.selected = this.selected.filter(t => t !== num);
+                } else {
+                    this.selected = [...this.selected, num];
+                }
+            },
 
-                confirmSelection() {
-                    const params = new URLSearchParams();
-                    this.selected.forEach((table) => params.append('tables[]', table));
-                    window.location.href = `${this.baseRedirect}?${params.toString()}`;
-                },
-            };
-        }
+            confirmar() {
+                if (this.selected.length === 0) return;
+                const base = '{{ route('mozo.orders.create') }}';
+                const params = new URLSearchParams();
+                this.selected.forEach(t => params.append('tables[]', t));
+                window.location.href = base + '?' + params.toString();
+            },
+        };
+    }
+    </script>
+
+    {{-- Bloquear navegación hacia atrás --}}
+    <script>
+        history.replaceState(null, '', window.location.href);
+
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) {
+                window.location.replace('{{ route('mozo.orders.index') }}');
+            }
+        });
     </script>
 </x-layouts.app>

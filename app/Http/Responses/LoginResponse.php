@@ -19,7 +19,7 @@ class LoginResponse implements LoginResponseContract
         }
 
         if ($user->role->name === 'cajero') {
-            return redirect()->intended(route('orders.index'));
+            return redirect()->intended(route('caja.dashboard'));
         }
 
         if ($user->role->name === 'cocina') {

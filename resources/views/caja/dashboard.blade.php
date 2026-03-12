@@ -65,15 +65,15 @@
                     <div class="flex items-center gap-2">
                         <span class="text-sm text-zinc-600 dark:text-zinc-300">{{ $order->table_label }}</span>
                         @if($order->origin_order_id)
-                            <span class="text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300 rounded-full px-2 py-0.5">+Adicional</span>
+                            <span class="text-xs bg-red-600 text-yellow-300 rounded-full px-2 py-0.5 font-semibold">+Adicional</span>
                         @endif
                     </div>
                 </div>
 
                 <div class="px-4 py-3 space-y-2">
                     @if($order->origin_order_id)
-                    <div class="rounded-lg bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-300 italic">
-                        Agregado a la orden #{{ $order->origin_order_id }}
+                    <div class="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-yellow-300">
+                        ➕ Agregado a la orden #{{ $order->origin_order_id }}
                     </div>
                     @endif
                     @if($order->comment)
@@ -231,14 +231,16 @@
                                     Ver detalle
                                 </a>
                                 @if($order->status === 'pendiente')
-                                <form action="{{ route('orders.cancel', $order) }}" method="POST"
-                                    onsubmit="return confirm('¿Cancelar pedido #{{ $order->id }}?')">
-                                    @csrf
-                                    <button type="submit"
-                                        class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded-lg transition">
-                                        Cancelar
-                                    </button>
-                                </form>
+                                <button type="button"
+                                    onclick="openPayOrderModal({{ $order->id }}, {{ $subtotal }})"
+                                    class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded-lg transition font-semibold">
+                                    💳 Cobrar
+                                </button>
+                                <button type="button"
+                                    onclick="openCancelModal({{ $order->id }})"
+                                    class="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 rounded-lg transition">
+                                    Cancelar
+                                </button>
                                 @endif
                             </td>
                         </tr>
@@ -255,7 +257,7 @@
     <div x-show="tab === 'historial'" x-cloak class="flex h-full w-full flex-1 flex-col gap-4 p-4">
 
         {{-- Resumen del día --}}
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-2 gap-4">
             <div class="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4">
                 <p class="text-xs text-green-600 font-semibold uppercase tracking-wide">Cobrados hoy</p>
                 <p class="text-2xl font-bold text-green-700 dark:text-green-300 mt-1">{{ $countPagado }}</p>
@@ -265,10 +267,10 @@
                 <p class="text-xs text-red-500 font-semibold uppercase tracking-wide">Cancelados hoy</p>
                 <p class="text-2xl font-bold text-red-600 dark:text-red-300 mt-1">{{ $countCancelado }}</p>
             </div>
-            <div class="rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-4">
+            <!-- <div class="rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-4">
                 <p class="text-xs text-zinc-500 font-semibold uppercase tracking-wide">Ingreso neto</p>
                 <p class="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">S/ {{ number_format($totalPagado, 2) }}</p>
-            </div>
+            </div> -->
         </div>
 
         {{-- Tabla historial --}}
@@ -304,7 +306,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 font-bold {{ $order->status === 'pagado' ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 line-through' }}">
-                                S/ {{ number_format($order->total, 2) }}
+                                S/ {{ number_format($order->items->sum(fn($it) => $it->price * $it->quantity), 2) }}
                             </td>
                             <td class="px-4 py-3">
                                 @if($order->status === 'pagado')
@@ -378,7 +380,7 @@
                         <p class="text-xl font-bold text-green-600 dark:text-green-400">S/ {{ number_format($ventasHoy, 2) }}</p>
                     </div>
                 </div>
-                <form method="POST" action="{{ route('cash.close') }}" class="space-y-3">
+                <form id="closeCajaForm" method="POST" action="{{ route('cash.close') }}" class="space-y-3">
                     @csrf
                     <div>
                         <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Monto final en caja (conteo físico)</label>
@@ -390,7 +392,7 @@
                         <input type="text" name="notes" placeholder="Ej: faltante de S/5.00"
                             class="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
                     </div>
-                    <button type="submit" onclick="return confirm('¿Cerrar la caja del día?')"
+                    <button type="button" onclick="openCloseCajaModal()"
                         class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2.5 rounded-lg text-sm transition">
                         Cerrar caja del día
                     </button>
@@ -423,6 +425,79 @@
         </div>
     </div>
 
+</div>
+
+
+{{-- ── MODAL CANCELAR PEDIDO ─────────────────────────────────────────────── --}}
+<div id="cancelOrderModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-zinc-800 rounded-2xl p-8 max-w-sm w-full shadow-2xl">
+        <h2 class="text-xl font-bold mb-2 dark:text-white">🚫 Cancelar Pedido</h2>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+            ¿Confirmas la cancelación del <span id="cancel_order_label" class="font-semibold text-zinc-700 dark:text-zinc-200"></span>?
+            Esta acción no se puede deshacer.
+        </p>
+        <form id="cancelOrderForm" method="POST">
+            @csrf
+            <div class="mb-5">
+                <label class="block text-sm font-semibold mb-2 dark:text-white">Motivo de cancelación <span class="text-red-500">*</span></label>
+                <textarea id="cancel_reason_input" name="cancel_reason" rows="3" required
+                    placeholder="Ej: cliente se retiró, pedido duplicado..."
+                    class="w-full border border-zinc-300 dark:border-zinc-600 rounded-lg p-2.5 text-sm dark:bg-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeCancelModal()"
+                    class="flex-1 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 dark:text-white px-4 py-2.5 rounded-lg font-semibold text-sm transition">
+                    Volver
+                </button>
+                <button type="submit"
+                    class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm transition">
+                    Sí, cancelar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ── MODAL COBRAR ORDEN INDIVIDUAL ────────────────────────────────────── --}}
+<div id="payOrderModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-zinc-800 rounded-2xl p-8 max-w-md w-full shadow-2xl">
+        <h2 class="text-2xl font-bold mb-5 dark:text-white">💳 Cobrar Orden</h2>
+        <form id="payOrderForm" method="POST">
+            @csrf
+            <div class="mb-5 rounded-xl bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 p-4 text-center">
+                <p class="text-xs text-zinc-500 mb-1">Orden <span id="pay_order_label" class="font-semibold"></span> — Total a cobrar</p>
+                <p class="text-3xl font-bold text-green-600 dark:text-green-400" id="pay_order_total"></p>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-semibold mb-2 dark:text-white">Método de Pago</label>
+                <select name="payment_method" required
+                    class="w-full border border-zinc-300 dark:border-zinc-600 rounded-lg p-2.5 text-sm dark:bg-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="efectivo">💵 Efectivo</option>
+                    <option value="yape">📱 Yape</option>
+                    <option value="tarjeta">💳 Tarjeta</option>
+                </select>
+            </div>
+            <div class="mb-6">
+                <label class="block text-sm font-semibold mb-2 dark:text-white">Tipo de Comprobante</label>
+                <select name="receipt_type" required
+                    class="w-full border border-zinc-300 dark:border-zinc-600 rounded-lg p-2.5 text-sm dark:bg-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="ticket">🧾 Ticket</option>
+                    <option value="boleta">📄 Boleta</option>
+                    <option value="factura">📋 Factura</option>
+                </select>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" onclick="closePayOrderModal()"
+                    class="flex-1 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 dark:text-white px-4 py-2.5 rounded-lg font-semibold text-sm transition">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg font-semibold text-sm transition">
+                    Confirmar Cobro
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 {{-- ── MODAL COBRAR MESA ─────────────────────────────────────────────────── --}}
@@ -465,6 +540,26 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+{{-- ── MODAL CERRAR CAJA ───────────────────────────────────────────────────── --}}
+<div id="closeCajaModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white dark:bg-zinc-800 rounded-2xl p-8 max-w-sm w-full shadow-2xl">
+        <h2 class="text-xl font-bold mb-2 dark:text-white">🗃️ Cerrar caja del día</h2>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+            ¿Cerrar la caja del día?
+        </p>
+        <div class="flex gap-3">
+            <button type="button" onclick="closeCloseCajaModal()"
+                class="flex-1 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 dark:text-white px-4 py-2.5 rounded-lg font-semibold text-sm transition">
+                Volver
+            </button>
+            <button type="button" onclick="document.getElementById('closeCajaForm').submit()"
+                class="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2.5 rounded-lg font-semibold text-sm transition">
+                Sí, cerrar caja
+            </button>
+        </div>
     </div>
 </div>
 
@@ -586,7 +681,7 @@ function buildCard(order) {
     div.dataset.orderId = order.id;
     div.style.cssText = 'opacity:0;transform:translateY(-10px);transition:opacity 0.4s,transform 0.4s';
 
-    const origin   = order.origin_order_id ? `<div class="rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-700 italic">Agregado a la orden #${order.origin_order_id}</div>` : '';
+    const origin   = order.origin_order_id ? `<div class="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-yellow-300">➕ Agregado a la orden #${order.origin_order_id}</div>` : '';
     const comentario = order.comment ? `<div class="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-700 italic">🗒️ ${esc(order.comment)}</div>` : '';
     const items    = order.items.map(i => `
         <li class="py-2 flex gap-3">
@@ -596,7 +691,7 @@ function buildCard(order) {
         </li>`).join('');
 
     div.innerHTML = `
-        <div class="flex justify-between items-center px-4 py-3 bg-zinc-50 border-b border-zinc-200">
+        <div class="flex justify-between items-center px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
             <div><span class="font-bold">Orden #${order.id}</span><span class="text-xs text-zinc-400 ml-2">${order.created_at}</span></div>
             <span class="text-sm text-zinc-600">${esc(order.table_label)}</span>
         </div>
@@ -633,7 +728,18 @@ async function imprimirPedido(orderId, btn) {
 
         const { order } = await res.json();
 
-        // 2. Payload para la impresora (igual que el original)
+        // 2. Marcar como impresa en el servidor SIEMPRE (independiente de la impresora)
+        try {
+            await fetch(`/kitchen/${orderId}/mark-printed`, {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'X-CSRF-TOKEN': csrf }
+            });
+        } catch(e) {}
+
+        // 3. Guardar en localStorage (persiste en refresh)
+        marcarImpresaLocal(orderId);
+
+        // 4. Intentar enviar a impresora física (no bloquea el flujo si falla)
         const pedidobody = {
             order_id:            order.id,
             order_created_at:    order.created_at,
@@ -647,32 +753,21 @@ async function imprimirPedido(orderId, btn) {
             }))
         };
 
-        // 3. Enviar al Node por WebSocket
-        const socket = new WebSocket('ws://localhost:3000');
-        socket.onopen = async () => {
-            socket.send(JSON.stringify({ action: 'print-ticket', pedido: pedidobody }));
+        try {
+            const socket = new WebSocket('ws://localhost:3000');
+            socket.onopen = () => {
+                socket.send(JSON.stringify({ action: 'print-ticket', pedido: pedidobody }));
+            };
+            socket.onmessage = e => console.log('Respuesta impresora:', JSON.parse(e.data));
+        } catch(e) {
+            console.warn('[Impresora]', e.message);
+        }
 
-            // 4. Marcar como impresa en el servidor (BD) → aparece en Cobros
-            try {
-                await fetch(`/kitchen/${orderId}/mark-printed`, {
-                    method: 'POST', credentials: 'same-origin',
-                    headers: { 'X-CSRF-TOKEN': csrf }
-                });
-            } catch(e) {}
-
-            // 5. Guardar en localStorage (persiste en refresh)
-            marcarImpresaLocal(orderId);
-
-            // 6. Ocultar tarjeta
-            const card = btn.closest('.order-card');
-            if (card) { card.style.transition = 'opacity 0.4s'; card.style.opacity = '0'; }
-
-            // 7. Ir a Cobros después del reload
-            sessionStorage.setItem('caja_tab_pendiente', 'cobros');
-            setTimeout(() => location.reload(), 800);
-        };
-        socket.onerror = () => btnError(btn);
-        socket.onmessage = e => console.log('Respuesta impresora:', JSON.parse(e.data));
+        // 5. Ocultar tarjeta e ir a Cobros
+        const card = btn.closest('.order-card');
+        if (card) { card.style.transition = 'opacity 0.4s'; card.style.opacity = '0'; }
+        sessionStorage.setItem('caja_tab_pendiente', 'cobros');
+        setTimeout(() => location.reload(), 800);
 
     } catch (err) {
         btnError(btn);
@@ -693,6 +788,34 @@ function btnError(btn) {
 }
 
 // ── Modal cobrar mesa ─────────────────────────────────────────────────────────
+
+function openCancelModal(orderId) {
+    document.getElementById('cancel_order_label').textContent = 'Pedido #' + orderId;
+    document.getElementById('cancelOrderForm').action = '/orders/' + orderId + '/cancel';
+    document.getElementById('cancel_reason_input').value = '';
+    document.getElementById('cancelOrderModal').classList.remove('hidden');
+}
+function closeCancelModal() {
+    document.getElementById('cancelOrderModal').classList.add('hidden');
+}
+document.getElementById('cancelOrderModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCancelModal();
+});
+
+
+function openPayOrderModal(orderId, subtotal) {
+    document.getElementById('pay_order_label').textContent = '#' + orderId;
+    document.getElementById('pay_order_total').textContent = 'S/ ' + parseFloat(subtotal).toFixed(2);
+    document.getElementById('payOrderForm').action = '/orders/' + orderId + '/pay';
+    document.getElementById('payOrderModal').classList.remove('hidden');
+}
+function closePayOrderModal() {
+    document.getElementById('payOrderModal').classList.add('hidden');
+}
+document.getElementById('payOrderModal').addEventListener('click', function(e) {
+    if (e.target === this) closePayOrderModal();
+});
+
 function openPayTableModal(tableKey, total) {
     document.getElementById('modal_table_key').value = tableKey;
     document.getElementById('modal_total').textContent = 'S/ ' + parseFloat(total).toFixed(2);
@@ -703,6 +826,15 @@ function closePayTableModal() {
 }
 document.getElementById('payTableModal').addEventListener('click', function(e) {
     if (e.target === this) closePayTableModal();
+});
+function openCloseCajaModal() {
+    document.getElementById('closeCajaModal').classList.remove('hidden');
+}
+function closeCloseCajaModal() {
+    document.getElementById('closeCajaModal').classList.add('hidden');
+}
+document.getElementById('closeCajaModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCloseCajaModal();
 });
 </script>
 @endpush

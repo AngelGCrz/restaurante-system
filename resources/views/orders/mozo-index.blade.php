@@ -15,14 +15,23 @@
             <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800 mb-4">
                 
                 {{-- 🏷️ Header de la mesa --}}
-                <div class="flex items-center justify-between mb-4 pb-3 border-b border-zinc-200 dark:border-zinc-700">
-                    <h2 class="text-xl font-bold">
-                        @if($tableKey === 'llevar')
-                            🥡 Para Llevar
-                        @else
-                            🪑 Mesa {{ $tableKey }}
+                <div class="flex items-start justify-between mb-4 pb-3 border-b border-zinc-200 dark:border-zinc-700">
+                    <div>
+                        <h2 class="text-xl font-bold">
+                            @if($tableKey === 'llevar')
+                                🥡 Para Llevar
+                            @else
+                                🪑 Mesa {{ $tableKey }}
+                            @endif
+                        </h2>
+                        @php $firstPendingOrder = $tableOrders->firstWhere('status', 'pendiente'); @endphp
+                        @if($firstPendingOrder)
+                        <a href="{{ route('mozo.orders.add-items', $firstPendingOrder) }}"
+                           class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 transition">
+                            ➕ Agregar Nueva Orden
+                        </a>
                         @endif
-                    </h2>
+                    </div>
                     <div class="text-right">
                         <p class="text-sm text-gray-500 dark:text-gray-400">Total Mesa</p>
                         <p class="text-2xl font-bold text-green-600">

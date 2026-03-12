@@ -203,11 +203,36 @@ class OrderController extends Controller
             return redirect()->route('mozo.orders.show', $order)->withErrors(['order' => 'Solo puede agregarse productos a pedidos pendientes.']);
         }
 
+        // Cargar el pedido padre con sus items e hijos para mostrar resumen
+        $parentOrder = $order->originOrder ?? null;
+        $rootOrder = $parentOrder ?? $order;
+        $rootOrder->load(['items.product', 'childOrders.items.product']);
+
         $categories = Category::with(['products' => function ($q) {
             $q->where('is_available', true)->orderBy('name');
         }])->orderBy('name')->get();
 
-        return view('orders.add-items', compact('order', 'categories'));
+        $stockEnabled       = (bool) Setting::getValue('stock_enabled', false);
+        $stockMinimum       = Setting::getValue('stock_minimum_threshold', null);
+        $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
+
+        $products = Product::where('is_available', true)
+            ->select('id', 'name', 'price', 'category_id', 'is_available', 'stock')
+            ->get()
+            ->map(fn ($p) => [
+                'id'             => $p->id,
+                'name'           => $p->name,
+                'price'          => $p->price,
+                'category_id'    => $p->category_id,
+                'is_available'   => (bool) $p->is_available,
+                'stock'          => (int) $p->stock,
+                'low_stock'      => $stockEnabled && $stockMinimum !== null && (int) $p->stock <= $stockMinimum && (int) $p->stock > 0,
+                'sold_out'       => $stockEnabled && (int) $p->stock <= 0,
+                'allow_negative' => $stockAllowNegative,
+            ])
+            ->values();
+
+        return view('orders.add-items', compact('order', 'rootOrder', 'categories', 'products'));
     }
 
     /**
@@ -323,7 +348,7 @@ class OrderController extends Controller
         $childOrder = Order::create([
             'user_id' => auth()->id(),
             'customer_name' => $order->customer_name,
-            'comment' => 'Agregado a la orden #' . $order->id,
+            'comment' => null,
             'type' => $request->input('takeaway') ? 'llevar' : $order->type,
             'table_numbers' => $order->table_numbers,
             'total' => 0,
@@ -450,7 +475,10 @@ class OrderController extends Controller
         $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
         $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
 
-        $busyTables = Order::where('status', 'pendiente')
+        // Mesas ocupadas por OTROS mozos (bloqueadas)
+        $otherBusyTables = Order::where('status', 'pendiente')
+            ->where('user_id', '!=', auth()->id())
+            ->whereNull('origin_order_id')
             ->pluck('table_numbers')
             ->flatten()
             ->map(fn ($t) => (int) $t)
@@ -459,6 +487,20 @@ class OrderController extends Controller
             ->values()
             ->all();
 
+        // Mesas propias del mozo con orden activa → puede agregar nueva orden
+        $myOrders = Order::where('status', 'pendiente')
+            ->where('user_id', auth()->id())
+            ->whereNull('origin_order_id')
+            ->get(['id', 'table_numbers']);
+
+        // Mapear: numero_mesa => order_id
+        $myTableOrderMap = [];
+        foreach ($myOrders as $ord) {
+            foreach (($ord->table_numbers ?? []) as $t) {
+                $myTableOrderMap[(int) $t] = $ord->id;
+            }
+        }
+
         $selectedTables = collect(request()->input('tables', []))
             ->map(fn ($table) => (int) $table)
             ->filter(fn ($table) => $table > 0 && ($tableCount === 0 || $table <= $tableCount))
@@ -466,7 +508,10 @@ class OrderController extends Controller
             ->values()
             ->all();
 
-        return view('orders.select-tables', compact('tableCount', 'tableNumbers', 'selectedTables', 'busyTables'));
+        return view('orders.select-tables', compact(
+            'tableCount', 'tableNumbers', 'selectedTables',
+            'otherBusyTables', 'myTableOrderMap'
+        ));
     }
 
     public function store(Request $request)
@@ -683,7 +728,10 @@ class OrderController extends Controller
             return redirect()->route('orders.show', $order)->withErrors(['order' => 'No se puede cancelar un pedido ya cobrado.']);
         }
 
-        $order->update(['status' => 'cancelado']);
+        $order->update([
+            'status'        => 'cancelado',
+            'cancel_reason' => $request->input('cancel_reason'),
+        ]);
         // Si la orden cancelada es una ORDEN PADRE, promover una hija pendiente (si existe)
         // Esto mantiene la mesa visible en la vista de mozo (las hijas no se listan como padres).
         if (is_null($order->origin_order_id)) {
