@@ -30,6 +30,8 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('users', UserController::class)->except(['show']);
         Route::get('tables', [TableSettingsController::class, 'edit'])->name('tables.edit');
         Route::put('tables', [TableSettingsController::class, 'update'])->name('tables.update');
+        Route::get('tables/release', [\App\Http\Controllers\Admin\ReleaseTableController::class, 'index'])->name('tables.release');
+        Route::post('tables/release', [\App\Http\Controllers\Admin\ReleaseTableController::class, 'release'])->name('tables.release.confirm');
         Route::resource('categories', CategoryController::class)->except(['show']);
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
