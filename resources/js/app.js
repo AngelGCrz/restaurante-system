@@ -1,6 +1,6 @@
-import Alpine from 'alpinejs'
+// import Alpine from 'alpinejs'
 
-window.Alpine = Alpine
+// window.Alpine = Alpine
 
 document.addEventListener('livewire:navigated', () => {
     Alpine.initTree(document.body)
@@ -185,4 +185,4 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
     };
 }
 
-Alpine.start()
+// Alpine.start()
