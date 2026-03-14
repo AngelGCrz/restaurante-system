@@ -5,6 +5,10 @@
             <h1 class="text-2xl font-bold">Detalle de Pedido #{{ $order->id }}</h1>
             @if($order->type === 'llevar')
                 <span class="ml-2 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">🥡 Para llevar</span>
+            @elseif($order->type === 'reserva')
+                <span class="ml-2 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-700">📋 Reserva</span>
+            @elseif($order->type === 'personal')
+                <span class="ml-2 inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1 text-sm font-semibold text-green-700">👤 Personal</span>
             @endif
         </div>
 

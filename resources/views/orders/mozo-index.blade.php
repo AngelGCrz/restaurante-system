@@ -20,6 +20,10 @@
                         <h2 class="text-xl font-bold">
                             @if($tableKey === 'llevar')
                                 🥡 Para Llevar
+                            @elseif($tableKey === 'reserva')
+                                📋 Reservas
+                            @elseif($tableKey === 'personal')
+                                👤 Personal
                             @else
                                 🪑 Mesa {{ $tableKey }}
                             @endif

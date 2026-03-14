@@ -156,6 +156,8 @@
                         <div class="flex items-center gap-3 flex-wrap">
                             <h2 class="text-xl font-bold dark:text-white">
                                 @if($tableKey === 'llevar') 🥡 Para Llevar
+                                @elseif($tableKey === 'reserva') 📋 Reservas
+                                @elseif($tableKey === 'personal') 👤 Personal
                                 @else 🪑 Mesa {{ $tableKey }}
                                 @endif
                             </h2>
@@ -214,6 +216,10 @@
                                 {{ $order->customer_name ?? 'N/A' }}
                                 @if($order->type === 'llevar' && !empty($order->table_numbers))
                                     <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full ml-1">🥡</span>
+                                @elseif($order->type === 'reserva')
+                                    <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full ml-1">📋</span>
+                                @elseif($order->type === 'personal')
+                                    <span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full ml-1">👤 $0</span>
                                 @endif
                             </td>
                             <td class="py-2 font-semibold dark:text-white">S/ {{ number_format($subtotal, 2) }}</td>
@@ -302,6 +308,8 @@
                             <td class="px-4 py-3 dark:text-white">
                                 @if(!empty($order->table_numbers)) 🪑 {{ implode('+', $order->table_numbers) }}
                                 @elseif($order->type === 'llevar') 🥡 Llevar
+                                @elseif($order->type === 'reserva') 📋 Reserva
+                                @elseif($order->type === 'personal') 👤 Personal
                                 @else —
                                 @endif
                             </td>

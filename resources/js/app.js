@@ -69,7 +69,7 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
                     this.selectedTables = saved.selectedTables;
                 }
             }
-            if (this.serviceType !== 'mesa') { this.selectedTables = []; }
+            if (this.serviceType === 'llevar' || this.serviceType === 'personal') { this.selectedTables = []; }
             // Limpiar del draft y refrescar precios desde datos en vivo del servidor
             Object.keys(this.selectedMap || {}).forEach(key => {
                 const item    = this.selectedMap[key];
@@ -106,14 +106,24 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
         clearProducts()  { this.selectedMap = {}; this.saveDraft(); },
 
         selectionLabel() {
-            if (this.serviceType !== 'mesa') return 'Pedido para llevar';
+            if (this.serviceType === 'reserva') {
+                if (!this.selectedTables.length) return 'Reserva sin mesa asignada';
+                const prefix = this.selectedTables.length === 1 ? 'Mesa' : 'Mesas';
+                return `📋 Reserva - ${prefix} ${this.selectedTables.join(' + ')}`;
+            }
+            if (this.serviceType !== 'mesa') return '';
             if (!this.selectedTables.length)
                 return '<span style="color:red">SELECCIONA MESAS</span>';
             const prefix = this.selectedTables.length === 1 ? 'Mesa' : 'Mesas';
             return `${prefix} ${this.selectedTables.join(' + ')}`;
         },
         handleTypeChange() {
-            if (this.serviceType !== 'mesa') { this.selectedTables = []; }
+            if (this.serviceType === 'llevar' || this.serviceType === 'personal') {
+                this.selectedTables = [];
+            }
+            if (this.serviceType === 'personal') {
+                this.customerName = '';
+            }
             this.saveDraft();
         },
         goToTableSelector() {
@@ -165,9 +175,15 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
             this.closeCommentModal();
         },
 
-        itemSubtotal(item) { return (Number(item.price) || 0) * (Number(item.quantity) || 0); },
+        itemSubtotal(item) {
+            if (this.serviceType === 'personal') return 0;
+            return (Number(item.price) || 0) * (Number(item.quantity) || 0);
+        },
 
-        get previewTotal() { return this.selectedList.reduce((s, i) => s + this.itemSubtotal(i), 0); },
+        get previewTotal() {
+            if (this.serviceType === 'personal') return 0;
+            return this.selectedList.reduce((s, i) => s + this.itemSubtotal(i), 0);
+        },
         get itemCount()    { return this.selectedList.reduce((s, i) => s + (Number(i.quantity) || 0), 0); },
 
         increment(key) {

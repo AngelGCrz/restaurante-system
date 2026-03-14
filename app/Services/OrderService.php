@@ -162,7 +162,7 @@ class OrderService
             $tables = $order->table_numbers ?? [];
             $key    = ! empty($tables)
                 ? implode(',', $tables)
-                : ($order->type === 'llevar' ? 'llevar' : '');
+                : ($order->type !== 'mesa' ? $order->type : '');
 
             if (! $grouped->has($key)) {
                 $grouped->put($key, collect());
@@ -212,8 +212,8 @@ class OrderService
         return $orders->groupBy(function ($order) {
             $tables = $order->table_numbers ?? [];
 
-            if ($order->type === 'llevar' && empty($tables)) {
-                return 'llevar';
+            if (empty($tables) && $order->type !== 'mesa') {
+                return $order->type; // 'llevar', 'reserva', 'personal'
             }
 
             return ! empty($tables) ? implode(',', $tables) : '';
@@ -294,7 +294,9 @@ class OrderService
                 }
             }
 
-            $price = $this->resolvePrice($item, $product, $order->type);
+            $price = $order->type === 'personal'
+                ? 0
+                : $this->resolvePrice($item, $product, $order->type);
 
             $order->items()->create([
                 'product_id' => $product->id,
@@ -373,8 +375,10 @@ class OrderService
 
     private function pendingOrdersByTableKey(string $tableKey): Collection
     {
+        $nonTableTypes = ['llevar', 'reserva', 'personal'];
+
         return Order::pending()
-            ->when($tableKey !== 'llevar', function ($q) use ($tableKey) {
+            ->when(!in_array($tableKey, $nonTableTypes), function ($q) use ($tableKey) {
                 $tables = explode(',', $tableKey);
                 $q->where(function ($inner) use ($tables) {
                     foreach ($tables as $t) {
@@ -382,7 +386,7 @@ class OrderService
                     }
                 });
             })
-            ->when($tableKey === 'llevar', fn ($q) => $q->where('type', 'llevar'))
+            ->when(in_array($tableKey, $nonTableTypes), fn ($q) => $q->where('type', $tableKey))
             ->get();
     }
 }

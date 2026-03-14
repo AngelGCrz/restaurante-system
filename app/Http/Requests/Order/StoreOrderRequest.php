@@ -14,14 +14,17 @@ class StoreOrderRequest extends FormRequest
 
     public function rules(): array
     {
-        $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
-        $isMesa     = $this->input('type') === 'mesa';
+        $tableCount     = (int) (Setting::getValue('total_tables', 0) ?? 0);
+        $type           = $this->input('type');
+        $isMesa         = $type === 'mesa';
+        $needsName      = in_array($type, ['llevar', 'reserva', 'personal']);
+        $needsTables    = $isMesa; // solo mesa requiere mesas obligatorias
 
         return [
-            'customer_name'        => $isMesa ? 'nullable|string|max:100' : 'required|string|max:100',
+            'customer_name'        => $needsName ? 'required|string|max:100' : 'nullable|string|max:100',
             'comment'              => 'nullable|string|max:500',
-            'type'                 => 'required|in:mesa,llevar',
-            'tables'               => $isMesa ? 'required|array|min:1' : 'nullable|array',
+            'type'                 => 'required|in:mesa,llevar,reserva,personal',
+            'tables'               => $needsTables ? 'required|array|min:1' : 'nullable|array',
             'tables.*'             => 'integer|min:1|max:'.max($tableCount, 1),
             'items'                => 'required|array|min:1',
             'items.*.product_id'   => 'required|exists:products,id',
@@ -35,7 +38,7 @@ class StoreOrderRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'customer_name.required' => 'El nombre del cliente es obligatorio para pedidos para llevar.',
+            'customer_name.required' => 'El nombre del cliente es obligatorio para este tipo de pedido.',
             'tables.required'        => 'Debes seleccionar al menos una mesa.',
             'items.required'         => 'El pedido debe tener al menos un producto.',
             'items.min'              => 'El pedido debe tener al menos un producto.',

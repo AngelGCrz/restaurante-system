@@ -62,7 +62,13 @@ class Order extends Model
     public function getTableLabelAttribute(): string
     {
         if (! is_array($this->table_numbers) || empty($this->table_numbers)) {
-            return ucfirst($this->type);
+            $labels = [
+                'mesa'     => 'Mesa',
+                'llevar'   => 'Para llevar',
+                'reserva'  => 'Reserva',
+                'personal' => 'Personal',
+            ];
+            return $labels[$this->type] ?? ucfirst($this->type);
         }
 
         $tables = array_values(array_map('intval', $this->table_numbers));

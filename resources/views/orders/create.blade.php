@@ -124,29 +124,31 @@
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
                     <h2 class="mb-4 text-lg font-semibold">Información del Pedido</h2>
                     <div class="space-y-4">
-                        <label class="block space-y-1">
+                        <label class="block space-y-1" x-show="serviceType !== 'personal'" x-cloak>
                     <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">
                         Nombre del Cliente
-                        <span x-show="serviceType === 'llevar'" class="text-red-500">*</span>
-                        <span x-show="serviceType !== 'llevar'" class="text-zinc-400 text-xs">(opcional)</span>
+                        <span x-show="serviceType === 'llevar' || serviceType === 'reserva'" class="text-red-500">*</span>
+                        <span x-show="serviceType !== 'llevar' && serviceType !== 'reserva'" class="text-zinc-400 text-xs">(opcional)</span>
                     </span>
                     <input
                         type="text"
                         name="customer_name"
                         x-model="customerName"
                         x-on:input="saveDraft"
-                        :required="serviceType === 'llevar'"
-                        :placeholder="serviceType === 'llevar' ? 'Requerido para llevar' : 'Opcional'"
-                        :class="serviceType === 'llevar' && customerName.trim() === ''
+                        :required="serviceType === 'llevar' || serviceType === 'reserva'"
+                        :placeholder="(serviceType === 'llevar' || serviceType === 'reserva') ? 'Requerido' : 'Opcional'"
+                        :class="(serviceType === 'llevar' || serviceType === 'reserva') && customerName.trim() === ''
                             ? 'w-full rounded-lg border border-red-500 bg-red-50 px-3 py-2 text-sm focus:border-red-500 focus:outline-none dark:border-red-500 dark:bg-zinc-900'
                             : 'w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900'"
                     >
                     <p
-                        x-show="serviceType === 'llevar' && customerName.trim() === ''"
+                        x-show="(serviceType === 'llevar' || serviceType === 'reserva') && customerName.trim() === ''"
                         x-cloak
                         class="text-xs text-red-500 mt-1"
-                    >⚠ Ingresa el nombre del cliente para pedidos para llevar.</p>
+                    >⚠ Ingresa el nombre del cliente.</p>
                 </label>
+                <!-- Hidden input for personal type (value from employee selector) -->
+                <input x-show="serviceType === 'personal'" type="hidden" name="customer_name" :value="customerName">
 
                         <label class="block space-y-1">
                             <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Comentario (opcional)</span>
@@ -158,13 +160,29 @@
                             <select name="type" x-model="serviceType" @change="serviceType = $event.target.value; handleTypeChange(); saveDraft();" class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900">
                                 <option value="mesa">En Mesa</option>
                                 <option value="llevar">Para Llevar</option>
+                                <option value="reserva">Reserva Pedido</option>
+                                <option value="personal">Personal</option>
                             </select>
                         </label>
 
-                        <div x-show="serviceType === 'mesa'" x-cloak class="space-y-2">
+                        <!-- Employee selector for Personal type -->
+                        <div x-show="serviceType === 'personal'" x-cloak class="space-y-1">
+                            <label class="block">
+                                <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Empleado</span>
+                                <select x-model="customerName" @change="saveDraft()" class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900">
+                                    <option value="">-- Seleccionar empleado --</option>
+                                    @foreach($staffUsers as $user)
+                                        <option value="{{ $user->name }}">{{ $user->name }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <p class="text-xs text-blue-600">🆓 Pedido sin costo para el personal.</p>
+                        </div>
+
+                        <div x-show="serviceType === 'mesa' || serviceType === 'reserva'" x-cloak class="space-y-2">
                             <div class="flex items-start justify-between gap-2">
                                 <div>
-                                    <p class="text-sm text-zinc-600">Selecciona una o varias mesas.</p>
+                                    <p class="text-sm text-zinc-600" x-text="serviceType === 'reserva' ? 'Mesa opcional para reserva.' : 'Selecciona una o varias mesas.'"></p>
                                     <p class="text-sm font-medium" x-html="selectionLabel()"></p>
                                 </div>
                                 <button

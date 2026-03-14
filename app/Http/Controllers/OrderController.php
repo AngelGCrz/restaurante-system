@@ -40,11 +40,10 @@ class OrderController extends Controller
                 $tableKey = implode(',', $tables);
                 $keys[] = $tableKey;
             } else {
-                // Si no tiene mesas y es 'llevar', agrupar en el bloque 'llevar'
-                if ($order->type === 'llevar') {
-                    $keys[] = 'llevar';
+                // Sin mesas: agrupar por tipo de servicio
+                if ($order->type !== 'mesa') {
+                    $keys[] = $order->type; // 'llevar', 'reserva', 'personal'
                 } else {
-                    // Pedidos sin mesa y no 'llevar' (edge-case)
                     $keys[] = '';
                 }
             }
@@ -140,21 +139,20 @@ class OrderController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Agrupar pedidos por mesa o en 'llevar' cuando no tengan mesas
+        // Agrupar pedidos por mesa o por tipo cuando no tengan mesas
         $ordersByTable = $orders->groupBy(function($order) {
             $tables = $order->table_numbers ?? [];
 
-            // Si es 'llevar' y NO tiene mesas, va al bloque 'llevar'
-            if ($order->type === 'llevar' && empty($tables)) {
-                return 'llevar';
+            // Sin mesas: agrupar por tipo de servicio
+            if (empty($tables) && $order->type !== 'mesa') {
+                return $order->type; // 'llevar', 'reserva', 'personal'
             }
 
-            // Si tiene mesas, agrupar por esas mesas (como '1' o '1,2')
+            // Si tiene mesas, agrupar por esas mesas
             if (!empty($tables)) {
                 return implode(',', $tables);
             }
 
-            // Fallback para pedidos sin mesa y no 'llevar'
             return '';
         });
 
@@ -384,7 +382,9 @@ class OrderController extends Controller
             }
         }
 
-        $price = $this->resolvePriceFromPivot($item, $product);
+        $price = $childOrder->type === 'personal'
+            ? 0
+            : $this->resolvePriceFromPivot($item, $product);
         if ($childOrder->type === 'llevar' && $price > 9) {
             $price += 1;
         }
@@ -487,7 +487,9 @@ class OrderController extends Controller
             ->values()
             ->all();
 
-        return view('orders.create', compact('products', 'categories', 'tableCount', 'tableNumbers', 'selectedTables'));
+        $staffUsers = \App\Models\User::select('id', 'name')->orderBy('name')->get();
+
+        return view('orders.create', compact('products', 'categories', 'tableCount', 'tableNumbers', 'selectedTables', 'staffUsers'));
     }
 
     public function selectTables()
@@ -552,14 +554,16 @@ class OrderController extends Controller
         ->all();
 
     $isMesa = $request->input('type') === 'mesa';
+    $type   = $request->input('type');
+    $needsName = in_array($type, ['llevar', 'reserva', 'personal']);
 
     $validated = $request->merge([
         'items' => $filteredItems,
-        'tables' => $isMesa ? $selectedTables : [],
+        'tables' => in_array($type, ['mesa', 'reserva']) ? $selectedTables : [],
     ])->validate([
-        'customer_name' => $isMesa ? 'nullable|string' : 'required|string',
+        'customer_name' => $needsName ? 'required|string' : 'nullable|string',
         'comment' => 'nullable|string',
-        'type' => 'required|in:mesa,llevar',
+        'type' => 'required|in:mesa,llevar,reserva,personal',
         'tables' => $isMesa ? 'required|array|min:1' : 'nullable|array',
         'tables.*' => 'integer|min:1|max:' . max($tableCount, 1),
         'items' => 'required|array|min:1',
@@ -652,7 +656,7 @@ class OrderController extends Controller
                 'customer_name' => $validated['customer_name'],
                 'comment' => $validated['comment'] ?? null,
                 'type' => $validated['type'],
-                'table_numbers' => $validated['type'] === 'mesa' ? $validated['tables'] : [],
+                'table_numbers' => $validated['tables'] ?? [],
                 'total' => 0,
             ]);
 
@@ -674,7 +678,9 @@ class OrderController extends Controller
                     }
                 }
 
-                $price = $this->resolvePriceFromPivot($item, $product);
+                $price = $validated['type'] === 'personal'
+                    ? 0
+                    : $this->resolvePriceFromPivot($item, $product);
 
                 if ($validated['type'] === 'llevar' && $price > 9) {
                     $price += 1;
@@ -829,9 +835,11 @@ public function payTable(Request $request)
 
     $tableKey = $request->table_key;
 
+    $nonTableTypes = ['llevar', 'reserva', 'personal'];
+
     // Buscar todos los pedidos pendientes de esa mesa
     $orders = Order::where('status', 'pendiente')
-        ->when($tableKey !== 'llevar', function($query) use ($tableKey) {
+        ->when(!in_array($tableKey, $nonTableTypes), function($query) use ($tableKey) {
             // Para mesas específicas
             $tableNumbers = explode(',', $tableKey);
             $query->where(function($q) use ($tableNumbers) {
@@ -840,9 +848,8 @@ public function payTable(Request $request)
                 }
             });
         })
-        ->when($tableKey === 'llevar', function($query) {
-            // Para pedidos "para llevar"
-            $query->where('type', 'llevar');
+        ->when(in_array($tableKey, $nonTableTypes), function($query) use ($tableKey) {
+            $query->where('type', $tableKey);
         })
         ->get();
 

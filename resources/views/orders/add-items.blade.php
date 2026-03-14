@@ -22,6 +22,10 @@
                     Pedido principal #{{ $rootOrder->id }}
                     @if($order->type === 'llevar')
                         · <span class="font-semibold text-indigo-600">🥡 Para Llevar</span>
+                    @elseif($order->type === 'reserva')
+                        · <span class="font-semibold text-amber-600">📋 Reserva</span>
+                    @elseif($order->type === 'personal')
+                        · <span class="font-semibold text-green-600">👤 Personal (sin costo)</span>
                     @endif
                 </p>
             </div>
@@ -54,7 +58,10 @@
                     <div class="mt-2 border-t border-zinc-200 pt-2 dark:border-zinc-700">
                         <p class="mb-1 text-xs font-semibold text-yellow-600">
                             ➕ Sub-orden #{{ $child->id }}
-                            @if($child->type === 'llevar') 🥡 @endif
+                            @if($child->type === 'llevar') 🥡
+                            @elseif($child->type === 'reserva') 📋
+                            @elseif($child->type === 'personal') 👤
+                            @endif
                         </p>
                         @foreach($child->items as $it)
                             <div class="flex justify-between pl-2 text-sm">
