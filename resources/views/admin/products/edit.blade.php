@@ -5,39 +5,82 @@
             <flux:button variant="subtle" href="{{ route('admin.products.index') }}" icon="arrow-left">Volver</flux:button>
         </div>
 
-        <div class="max-w-xl rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800">
+        @if($errors->any())
+            <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                <ul class="list-disc pl-4 space-y-1">
+                    @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
+                </ul>
+            </div>
+        @endif
+
+        <div class="max-w-2xl rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-800"
+             x-data="editProductComponent()">
             <form action="{{ route('admin.products.update', $product) }}" method="POST" class="space-y-4">
                 @csrf
                 @method('PUT')
 
                 <div>
-                    <label class="text-sm font-medium">Nombre del Producto</label>
-                    <input type="text" name="name" value="{{ old('name', $product->name) }}" required class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" />
+                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Nombre del Producto</label>
+                    <input type="text" name="name" value="{{ old('name', $product->name) }}" required
+                        class="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" />
                 </div>
 
                 <div>
-                    <label class="text-sm font-medium">Categoría</label>
-                    <select name="category_id" required class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700">
-                        <option value="">Seleccione</option>
-                        @foreach($categories as $category)
-                            <option value="{{ $category->id }}" @selected($product->category_id === $category->id)>{{ $category->name }}</option>
-                        @endforeach
-                    </select>
+                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Stock</label>
+                    <input type="number" name="stock" step="1" min="-999999" value="{{ old('stock', $product->stock ?? 0) }}" required
+                        class="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" />
                 </div>
 
                 <div>
-                    <label class="text-sm font-medium">Precio</label>
-                    <input type="number" name="price" step="0.01" value="{{ old('price', $product->price) }}" required class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" />
+                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Descripción (Opcional)</label>
+                    <textarea name="description" rows="3"
+                        class="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700">{{ old('description', $product->description) }}</textarea>
                 </div>
 
+                {{-- Categorías con precio propio --}}
                 <div>
-                    <label class="text-sm font-medium">Stock</label>
-                    <input type="number" name="stock" step="1" min="-999999" value="{{ old('stock', $product->stock ?? 0) }}" required class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" />
-                </div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                            Categoría y Precio
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <button type="button" @click="addRow()"
+                            class="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline">
+                            + Agregar otra categoría
+                        </button>
+                    </div>
 
-                <div>
-                    <label class="text-sm font-medium">Descripción (Opcional)</label>
-                    <textarea name="description" class="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" rows="3">{{ old('description', $product->description) }}</textarea>
+                    <div class="space-y-2">
+                        <template x-for="(row, i) in rows" :key="i">
+                            <div class="flex items-center gap-2">
+                                <select :name="'category_prices[' + i + '][category_id]'"
+                                    x-model="row.category_id"
+                                    required
+                                    class="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700">
+                                    <option value="">— Seleccione categoría —</option>
+                                    @foreach($categories as $category)
+                                        <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">S/</span>
+                                    <input type="number" step="0.01" min="0"
+                                        :name="'category_prices[' + i + '][price]'"
+                                        x-model="row.price"
+                                        placeholder="0.00"
+                                        required
+                                        class="w-28 rounded-lg border border-zinc-300 pl-8 pr-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-700" />
+                                </div>
+                                <button type="button" @click="removeRow(i)"
+                                    x-show="rows.length > 1"
+                                    class="flex-shrink-0 text-rose-500 hover:text-rose-700 text-xl font-bold leading-none w-8 h-8 flex items-center justify-center rounded-full hover:bg-rose-50">×</button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <p class="text-xs text-zinc-500 mt-2">
+                        💡 El stock es compartido entre todas las categorías. Si agregas el mismo producto en 2 categorías con distintos precios, el stock baja de un mismo contador.
+                    </p>
                 </div>
 
                 <label class="flex items-center gap-2 text-sm font-medium">
@@ -53,3 +96,19 @@
         </div>
     </div>
 </x-layouts.app>
+
+@php
+$initialRows = $product->categories->isNotEmpty()
+    ? $product->categories->map(fn($c) => ['category_id' => (string)$c->id, 'price' => (string)$c->pivot->price])->values()->toArray()
+    : [['category_id' => '', 'price' => '']];
+@endphp
+
+<script>
+function editProductComponent() {
+    return {
+        rows: @json($initialRows),
+        addRow() { this.rows.push({ category_id: '', price: '' }); },
+        removeRow(i) { if (this.rows.length > 1) this.rows.splice(i, 1); },
+    };
+}
+</script>

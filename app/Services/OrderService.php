@@ -315,22 +315,29 @@ class OrderService
 
     /**
      * Resuelve el precio final de un item.
-     * Prioriza el precio enviado desde el frontend (para precios especiales),
-     * y aplica el recargo de +1 sol para pedidos para llevar con precio > 9.
+     * Si viene category_id, consulta el precio del pivot (fuente de verdad).
+     * Fallback: precio enviado por el frontend, luego precio base del producto.
      */
     private function resolvePrice(array $item, Product $product, string $orderType): float
     {
+        // Fuente de verdad: precio configurado en admin para esta categoría
+        if (!empty($item['category_id'])) {
+            $pivotPrice = \DB::table('category_product')
+                ->where('product_id', $product->id)
+                ->where('category_id', (int) $item['category_id'])
+                ->value('price');
+
+            if ($pivotPrice !== null) {
+                return (float) $pivotPrice;
+            }
+        }
+
+        // Fallback: precio enviado por el frontend
         if (isset($item['price']) && is_numeric($item['price'])) {
             return (float) $item['price'];
         }
 
-        $price = (float) $product->price;
-
-        if ($orderType === 'llevar' && $price > 9) {
-            $price += 1;
-        }
-
-        return $price;
+        return (float) $product->price;
     }
 
     /** Valida stock antes de abrir la transacción (early-fail). */

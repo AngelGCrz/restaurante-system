@@ -108,21 +108,22 @@
                     <h2 class="mb-3 text-base font-semibold">Productos Disponibles</h2>
 
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                        <template x-for="product in filteredProducts" :key="product.id">
+                        <template x-for="product in filteredProducts" :key="product.id + '_' + (product.category_id ?? 0)">
                             <button
                                 type="button"
                                 :disabled="product.sold_out"
-                                @click="addProduct(product)"
+                                :data-product-key="product.id + '_' + (product.category_id ?? 0)"
+                                @click="addProductByKey($el.dataset.productKey)"
                                 :class="[
                                     'relative flex flex-col items-center justify-center rounded-md border p-2 text-center shadow-sm transition',
                                     product.sold_out
                                         ? 'cursor-not-allowed opacity-50 border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900'
                                         : 'border-zinc-200 bg-white hover:border-emerald-400 active:scale-95 dark:border-zinc-700 dark:bg-zinc-900',
-                                    selectedMap[product.id] ? 'ring-2 ring-emerald-400 border-emerald-400' : ''
+                                    selectedMap[product.id + '_' + (product.category_id ?? 0)] ? 'ring-2 ring-emerald-400 border-emerald-400' : ''
                                 ]">
-                                <div class="absolute right-1 top-1" x-show="selectedMap[product.id]" x-cloak>
+                                <div class="absolute right-1 top-1" x-show="selectedMap[product.id + '_' + (product.category_id ?? 0)]" x-cloak>
                                     <span class="inline-flex min-w-[22px] justify-center rounded-full bg-emerald-600 px-1 py-0.5 text-xs font-bold text-white"
-                                          x-text="selectedMap[product.id]?.quantity"></span>
+                                          x-text="selectedMap[product.id + '_' + (product.category_id ?? 0)]?.quantity"></span>
                                 </div>
                                 <p class="text-sm font-semibold leading-tight" x-text="product.name"></p>
                                 <p class="mt-0.5 text-xs text-zinc-500" x-text="currency(product.price)"></p>
@@ -171,17 +172,19 @@
                     </p>
 
                     <div class="space-y-3" x-show="selectedList.length > 0" x-cloak>
-                        <template x-for="item in selectedList" :key="item.id">
+                        <template x-for="item in selectedList" :key="item._key">
                             <div>
-                                <input type="hidden" :name="'items[' + item.id + '][product_id]'" :value="item.id">
-                                <input type="hidden" :name="'items[' + item.id + '][quantity]'" :value="item.quantity">
-                                <input type="hidden" :name="'items[' + item.id + '][comment]'" :value="item.comment ?? ''">
+                                <input type="hidden" :name="'items[' + item._key + '][product_id]'" :value="item.id">
+                                <input type="hidden" :name="'items[' + item._key + '][category_id]'" :value="item.category_id ?? ''">
+                                <input type="hidden" :name="'items[' + item._key + '][quantity]'" :value="item.quantity">
+                                <input type="hidden" :name="'items[' + item._key + '][price]'" :value="item.price">
+                                <input type="hidden" :name="'items[' + item._key + '][comment]'" :value="item.comment ?? ''">
 
                                 <div class="flex items-center gap-2">
                                     <div class="flex items-center overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-600">
-                                        <button type="button" class="px-2 py-1 text-sm font-bold hover:bg-zinc-100 dark:hover:bg-zinc-700" @click="decrement(item.id)">−</button>
+                                        <button type="button" class="px-2 py-1 text-sm font-bold hover:bg-zinc-100 dark:hover:bg-zinc-700" @click="decrement(item._key)">−</button>
                                         <span class="px-2 text-sm font-semibold" x-text="item.quantity"></span>
-                                        <button type="button" class="px-2 py-1 text-sm font-bold hover:bg-zinc-100 dark:hover:bg-zinc-700" @click="increment(item.id)">+</button>
+                                        <button type="button" class="px-2 py-1 text-sm font-bold hover:bg-zinc-100 dark:hover:bg-zinc-700" @click="increment(item._key)">+</button>
                                     </div>
                                     <div class="min-w-0 flex-1">
                                         <p class="truncate text-sm font-medium" x-text="item.name"></p>
@@ -256,36 +259,49 @@
             currentCommentItem: null,
             currentCommentText: '',
 
+            // Clave compuesta: mismo producto puede tener distinto precio por categoría
+            _key(product) {
+                return `${product.id}_${product.category_id ?? 0}`;
+            },
+
+            addProductByKey(key) {
+                const product = this.products.find(p => this._key(p) === key);
+                if (product) this.addProduct(product);
+            },
+
             addProduct(product) {
                 if (product.sold_out) return;
-                const existing = this.selectedMap[product.id] ?? { ...product, quantity: 0, comment: '' };
+                const key = this._key(product);
+                // Always use live price from products array to guard against stale Alpine scope
+                const liveProduct = this.products.find(p => p.id === product.id && String(p.category_id) === String(product.category_id)) || product;
+                const existing = this.selectedMap[key] ?? { ...liveProduct, quantity: 0, comment: '', _key: key };
                 const newQty = existing.quantity + 1;
-                if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
-                    window.showToast ? showToast('Stock insuficiente: ' + product.name) : alert('Stock insuficiente para ' + product.name);
+                if (!liveProduct.allow_negative && typeof liveProduct.stock === 'number' && newQty > liveProduct.stock) {
+                    window.showToast ? showToast('Stock insuficiente: ' + liveProduct.name) : alert('Stock insuficiente para ' + liveProduct.name);
                     return;
                 }
-                this.selectedMap = { ...this.selectedMap, [product.id]: { ...existing, quantity: newQty } };
+                this.selectedMap = { ...this.selectedMap, [key]: { ...existing, _key: key, price: liveProduct.price, category_id: liveProduct.category_id, quantity: newQty } };
             },
-            increment(id) {
-                if (!this.selectedMap[id]) return;
-                const item = this.selectedMap[id];
-                const product = this.products.find(p => p.id == id) || item;
+            increment(key) {
+                if (!this.selectedMap[key]) return;
+                const item = this.selectedMap[key];
+                const product = this.products.find(p => this._key(p) === key) || item;
                 const newQty = item.quantity + 1;
                 if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
                     window.showToast ? showToast('Stock insuficiente') : alert('Stock insuficiente');
                     return;
                 }
-                this.selectedMap = { ...this.selectedMap, [id]: { ...item, quantity: newQty } };
+                this.selectedMap = { ...this.selectedMap, [key]: { ...item, quantity: newQty } };
             },
-            decrement(id) {
-                if (!this.selectedMap[id]) return;
-                const newQty = this.selectedMap[id].quantity - 1;
+            decrement(key) {
+                if (!this.selectedMap[key]) return;
+                const newQty = this.selectedMap[key].quantity - 1;
                 if (newQty <= 0) {
                     const m = { ...this.selectedMap };
-                    delete m[id];
+                    delete m[key];
                     this.selectedMap = m;
                 } else {
-                    this.selectedMap = { ...this.selectedMap, [id]: { ...this.selectedMap[id], quantity: newQty } };
+                    this.selectedMap = { ...this.selectedMap, [key]: { ...this.selectedMap[key], quantity: newQty } };
                 }
             },
             openCommentModal(item) {
@@ -296,14 +312,23 @@
             closeCommentModal() { this.showCommentModal = false; this.currentCommentItem = null; this.currentCommentText = ''; },
             saveItemComment() {
                 if (this.currentCommentItem) {
-                    const id = this.currentCommentItem.id;
-                    this.selectedMap = { ...this.selectedMap, [id]: { ...this.selectedMap[id], comment: this.currentCommentText } };
+                    const key = this.currentCommentItem._key;
+                    this.selectedMap = { ...this.selectedMap, [key]: { ...this.selectedMap[key], comment: this.currentCommentText } };
                 }
                 this.closeCommentModal();
             },
             get selectedList() { return Object.values(this.selectedMap).filter(i => i.quantity > 0); },
             get filteredProducts() {
-                return this.currentCategory === null ? this.products : this.products.filter(p => String(p.category_id) === String(this.currentCategory));
+                if (this.currentCategory !== null) {
+                    return this.products.filter(p => String(p.category_id) === String(this.currentCategory));
+                }
+                // En "Todas": deduplicar por product.id para evitar duplicados
+                const seen = new Set();
+                return this.products.filter(p => {
+                    if (seen.has(p.id)) return false;
+                    seen.add(p.id);
+                    return true;
+                });
             },
             get previewTotal() { return this.selectedList.reduce((s, i) => s + Number(i.price) * Number(i.quantity), 0); },
             get itemCount() { return this.selectedList.reduce((s, i) => s + Number(i.quantity), 0); },

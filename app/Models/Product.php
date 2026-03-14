@@ -7,7 +7,7 @@ use App\Models\Category;
 
 class Product extends Model
 {
-    protected $fillable = ['name', 'description', 'price', 'is_available', 'category_id', 'stock'];
+    protected $fillable = ['name', 'description', 'price', 'is_available', 'stock'];
 
     protected $casts = [
         'price' => 'decimal:2',
@@ -37,9 +37,12 @@ class Product extends Model
         $this->save();
     }
 
-    public function category(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    /** Un producto pertenece a múltiples categorías con precio propio por categoría. */
+    public function categories(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsToMany(Category::class)
+            ->withPivot('price')
+            ->withTimestamps();
     }
 
     // 🔍 Scope: búsqueda por nombre
@@ -50,11 +53,11 @@ class Product extends Model
         }
     }
 
-    // 🗂 Scope: filtro por categoría
+    // 🗂 Scope: filtro por categoría (vía pivot)
     public function scopeCategoryFilter($query, $categoryId)
     {
         if ($categoryId) {
-            $query->where('category_id', $categoryId);
+            $query->whereHas('categories', fn ($q) => $q->where('categories.id', $categoryId));
         }
     }
 }

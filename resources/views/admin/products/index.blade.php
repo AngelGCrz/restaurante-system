@@ -43,13 +43,20 @@
                     <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800 shadow-sm">
                         <div class="font-semibold text-lg mb-1">{{ $product->name }}</div>
                         <div class="text-sm text-zinc-500 mb-2">
-                            {{ $product->category->name ?? 'Sin categoría' }}
+                            {{ $product->categories->pluck('name')->join(', ') ?: 'Sin categoría' }}
                         </div>
 
                         <div class="grid grid-cols-2 gap-2 text-sm">
                             <div>
                                 <span class="font-medium">Precio:</span>
-                                <span>${{ number_format($product->price, 2) }}</span>
+                                <span>
+                                    @foreach($product->categories as $cat)
+                                        <span class="block text-xs">{{ $cat->name }}: ${{ number_format($cat->pivot->price, 2) }}</span>
+                                    @endforeach
+                                    @if($product->categories->isEmpty())
+                                        ${{ number_format($product->price, 2) }}
+                                    @endif
+                                </span>
                             </div>
 
                             <div>
@@ -117,8 +124,15 @@
                         @foreach($products as $product)
                             <tr>
                                 <td class="py-3">{{ $product->name }}</td>
-                                <td class="py-3">{{ $product->category->name ?? 'Sin categoría' }}</td>
-                                <td class="py-3">${{ number_format($product->price, 2) }}</td>
+                                <td class="py-3">{{ $product->categories->pluck('name')->join(', ') ?: 'Sin categoría' }}</td>
+                                <td class="py-3">
+                                    @foreach($product->categories as $cat)
+                                        <span class="block text-xs">{{ $cat->name }}: ${{ number_format($cat->pivot->price, 2) }}</span>
+                                    @endforeach
+                                    @if($product->categories->isEmpty())
+                                        ${{ number_format($product->price, 2) }}
+                                    @endif
+                                </td>
                                 <td class="py-3">
                                     @if(($stockEnabled ?? false) && ($product->stock ?? 0) <= 0)
                                         <span class="text-xs text-rose-600 font-semibold">Agotado</span>

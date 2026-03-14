@@ -259,20 +259,44 @@ class OrderController extends Controller
         $stockMinimum       = Setting::getValue('stock_minimum_threshold', null);
         $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
 
+        // Expandir cada producto por sus categorías: un producto puede tener
+        // distinto precio según la categoría, pero comparte el mismo stock.
         $products = Product::where('is_available', true)
-            ->select('id', 'name', 'price', 'category_id', 'is_available', 'stock')
+            ->with('categories')
+            ->orderBy('name')
             ->get()
-            ->map(fn ($p) => [
-                'id'             => $p->id,
-                'name'           => $p->name,
-                'price'          => $p->price,
-                'category_id'    => $p->category_id,
-                'is_available'   => (bool) $p->is_available,
-                'stock'          => (int) $p->stock,
-                'low_stock'      => $stockEnabled && $stockMinimum !== null && (int) $p->stock <= $stockMinimum && (int) $p->stock > 0,
-                'sold_out'       => $stockEnabled && (int) $p->stock <= 0,
-                'allow_negative' => $stockAllowNegative,
-            ])
+            ->flatMap(function ($p) use ($stockEnabled, $stockMinimum, $stockAllowNegative) {
+                $stockInt = (int) $p->stock;
+
+                if ($p->categories->isEmpty()) {
+                    // Producto sin categoría asignada: usar precio base del producto
+                    return [[
+                        'id'             => $p->id,
+                        'name'           => $p->name,
+                        'price'          => (float) $p->price,
+                        'category_id'    => null,
+                        'is_available'   => (bool) $p->is_available,
+                        'stock'          => $stockInt,
+                        'low_stock'      => $stockEnabled && $stockMinimum !== null && $stockInt <= (int) $stockMinimum && $stockInt > 0,
+                        'sold_out'       => $stockEnabled && $stockInt <= 0,
+                        'allow_negative' => $stockAllowNegative,
+                    ]];
+                }
+
+                return $p->categories->map(function ($cat) use ($p, $stockInt, $stockEnabled, $stockMinimum, $stockAllowNegative) {
+                    return [
+                        'id'             => $p->id,
+                        'name'           => $p->name,
+                        'price'          => (float) $cat->pivot->price,
+                        'category_id'    => $cat->id,
+                        'is_available'   => (bool) $p->is_available,
+                        'stock'          => $stockInt,
+                        'low_stock'      => $stockEnabled && $stockMinimum !== null && $stockInt <= (int) $stockMinimum && $stockInt > 0,
+                        'sold_out'       => $stockEnabled && $stockInt <= 0,
+                        'allow_negative' => $stockAllowNegative,
+                    ];
+                });
+            })
             ->values();
 
         $categories = Category::select('id', 'name')->orderByRaw('FIELD(id, 4, 1, 2, 3, 5)')->get();

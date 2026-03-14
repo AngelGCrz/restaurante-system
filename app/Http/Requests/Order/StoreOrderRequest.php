@@ -25,6 +25,7 @@ class StoreOrderRequest extends FormRequest
             'tables.*'             => 'integer|min:1|max:'.max($tableCount, 1),
             'items'                => 'required|array|min:1',
             'items.*.product_id'   => 'required|exists:products,id',
+            'items.*.category_id'  => 'nullable|exists:categories,id',
             'items.*.quantity'     => 'required|integer|min:1',
             'items.*.price'        => 'nullable|numeric|min:0',
             'items.*.comment'      => 'nullable|string|max:255',

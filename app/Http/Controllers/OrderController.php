@@ -217,19 +217,30 @@ class OrderController extends Controller
         $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
 
         $products = Product::where('is_available', true)
-            ->select('id', 'name', 'price', 'category_id', 'is_available', 'stock')
+            ->with('categories')
+            ->orderBy('name')
             ->get()
-            ->map(fn ($p) => [
-                'id'             => $p->id,
-                'name'           => $p->name,
-                'price'          => $p->price,
-                'category_id'    => $p->category_id,
-                'is_available'   => (bool) $p->is_available,
-                'stock'          => (int) $p->stock,
-                'low_stock'      => $stockEnabled && $stockMinimum !== null && (int) $p->stock <= $stockMinimum && (int) $p->stock > 0,
-                'sold_out'       => $stockEnabled && (int) $p->stock <= 0,
-                'allow_negative' => $stockAllowNegative,
-            ])
+            ->flatMap(function ($p) use ($stockEnabled, $stockMinimum, $stockAllowNegative) {
+                $stockInt = (int) $p->stock;
+                if ($p->categories->isEmpty()) {
+                    return [[
+                        'id' => $p->id, 'name' => $p->name, 'price' => (float) $p->price,
+                        'category_id' => null, 'is_available' => (bool) $p->is_available,
+                        'stock' => $stockInt,
+                        'low_stock' => $stockEnabled && $stockMinimum !== null && $stockInt <= (int) $stockMinimum && $stockInt > 0,
+                        'sold_out' => $stockEnabled && $stockInt <= 0,
+                        'allow_negative' => $stockAllowNegative,
+                    ]];
+                }
+                return $p->categories->map(fn ($cat) => [
+                    'id' => $p->id, 'name' => $p->name, 'price' => (float) $cat->pivot->price,
+                    'category_id' => $cat->id, 'is_available' => (bool) $p->is_available,
+                    'stock' => $stockInt,
+                    'low_stock' => $stockEnabled && $stockMinimum !== null && $stockInt <= (int) $stockMinimum && $stockInt > 0,
+                    'sold_out' => $stockEnabled && $stockInt <= 0,
+                    'allow_negative' => $stockAllowNegative,
+                ]);
+            })
             ->values();
 
         return view('orders.add-items', compact('order', 'rootOrder', 'categories', 'products'));
@@ -335,7 +346,9 @@ class OrderController extends Controller
         $validated = $request->merge(['items' => $filteredItems])->validate([
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
+            'items.*.category_id' => 'nullable|exists:categories,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'nullable|numeric|min:0',
             'items.*.comment' => 'nullable|string',
         ]);
 
@@ -371,7 +384,7 @@ class OrderController extends Controller
             }
         }
 
-        $price = $product->price;
+        $price = $this->resolvePriceFromPivot($item, $product);
         if ($childOrder->type === 'llevar' && $price > 9) {
             $price += 1;
         }
@@ -432,31 +445,38 @@ class OrderController extends Controller
 
     public function create()
     {
-        // Load products for waiter view (show sold-out as disabled badge instead of hiding)
-        $products = Product::where('is_available', true)
-            ->select('id', 'name', 'price', 'category_id', 'is_available', 'stock')
-            ->get();
-        // stock settings configured by admin
-        $stockEnabled = (bool) Setting::getValue('stock_enabled', false);
-        $stockMinimum = Setting::getValue('stock_minimum_threshold', null);
+        $stockEnabled       = (bool) Setting::getValue('stock_enabled', false);
+        $stockMinimum       = Setting::getValue('stock_minimum_threshold', null);
         $stockAllowNegative = (bool) Setting::getValue('stock_allow_negative', false);
 
-        $products = $products->map(function ($p) use ($stockEnabled, $stockMinimum, $stockAllowNegative) {
-            $stock = (int) $p->stock;
-            return [
-                'id' => $p->id,
-                'name' => $p->name,
-                'price' => $p->price,
-                'category_id' => $p->category_id,
-                'is_available' => (bool) $p->is_available,
-                'stock' => $stock,
-                'low_stock' => $stockEnabled && $stockMinimum !== null && $stock <= $stockMinimum && $stock > 0,
-                'sold_out' => $stockEnabled && $stock <= 0,
-                'allow_negative' => $stockAllowNegative,
-            ];
-        })->values();
+        $products = Product::where('is_available', true)
+            ->with('categories')
+            ->orderBy('name')
+            ->get()
+            ->flatMap(function ($p) use ($stockEnabled, $stockMinimum, $stockAllowNegative) {
+                $stockInt = (int) $p->stock;
+                if ($p->categories->isEmpty()) {
+                    return [[
+                        'id' => $p->id, 'name' => $p->name, 'price' => (float) $p->price,
+                        'category_id' => null, 'is_available' => (bool) $p->is_available,
+                        'stock' => $stockInt,
+                        'low_stock' => $stockEnabled && $stockMinimum !== null && $stockInt <= (int) $stockMinimum && $stockInt > 0,
+                        'sold_out' => $stockEnabled && $stockInt <= 0,
+                        'allow_negative' => $stockAllowNegative,
+                    ]];
+                }
+                return $p->categories->map(fn ($cat) => [
+                    'id' => $p->id, 'name' => $p->name, 'price' => (float) $cat->pivot->price,
+                    'category_id' => $cat->id, 'is_available' => (bool) $p->is_available,
+                    'stock' => $stockInt,
+                    'low_stock' => $stockEnabled && $stockMinimum !== null && $stockInt <= (int) $stockMinimum && $stockInt > 0,
+                    'sold_out' => $stockEnabled && $stockInt <= 0,
+                    'allow_negative' => $stockAllowNegative,
+                ]);
+            })
+            ->values();
+
         $categories = Category::select('id', 'name')->orderByRaw("FIELD(id, 4, 1, 2, 3, 5)")->get();
-        // $categories = Category::select('id', 'name')->orderBy('name')->get();
         $tableCount = (int) (Setting::getValue('total_tables', 0) ?? 0);
         $tableNumbers = $tableCount > 0 ? range(1, $tableCount) : [];
 
@@ -544,7 +564,9 @@ class OrderController extends Controller
         'tables.*' => 'integer|min:1|max:' . max($tableCount, 1),
         'items' => 'required|array|min:1',
         'items.*.product_id' => 'required|exists:products,id',
+        'items.*.category_id' => 'nullable|exists:categories,id',
         'items.*.quantity' => 'required|integer|min:1',
+        'items.*.price' => 'nullable|numeric|min:0',
         'items.*.comment' => 'nullable|string',
     ]);
 
@@ -652,7 +674,7 @@ class OrderController extends Controller
                     }
                 }
 
-                $price = $product->price;
+                $price = $this->resolvePriceFromPivot($item, $product);
 
                 if ($validated['type'] === 'llevar' && $price > 9) {
                     $price += 1;
@@ -854,4 +876,29 @@ public function payTable(Request $request)
     //     $order->load('items.product');
     //     return view('orders.show', compact('order'));
     // }
+
+    /**
+     * Resuelve el precio de un item desde la tabla pivot category_product.
+     * Fuente de verdad: precio configurado en admin para la categoría del item.
+     */
+    private function resolvePriceFromPivot(array $item, Product $product): float
+    {
+        if (!empty($item['category_id'])) {
+            $pivotPrice = DB::table('category_product')
+                ->where('product_id', $product->id)
+                ->where('category_id', (int) $item['category_id'])
+                ->value('price');
+
+            if ($pivotPrice !== null) {
+                return (float) $pivotPrice;
+            }
+        }
+
+        // Fallback: precio enviado por el frontend
+        if (isset($item['price']) && is_numeric($item['price'])) {
+            return (float) $item['price'];
+        }
+
+        return (float) $product->price;
+    }
 }

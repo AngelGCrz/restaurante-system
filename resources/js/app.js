@@ -32,7 +32,7 @@ window.orderManager = function () {
 // ── orderFormComponent: usado en orders/create.blade.php ──────────────────────
 window.orderFormComponent = function ({ totalTables = 0, presetTables = [], presetSelection = [], tableSelectUrl = '', products = [], categories = [], initialServiceType = 'mesa', initialCustomerName = '', initialComment = '' }) {
     return {
-        persistKey: 'order_form_draft',
+        persistKey: 'order_form_draft_v2',
         serviceType: initialServiceType || 'mesa',
         customerName: initialCustomerName || '',
         comment: initialComment || '',
@@ -47,6 +47,11 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
         categories,
         currentCategory: categories.length ? categories[0].id : null,
         selectedMap: {},
+
+        // Clave compuesta: mismo producto puede tener distinto precio por categoría
+        _key(product) {
+            return `${product.id}_${product.category_id ?? 0}`;
+        },
 
         init() {
             if (sessionStorage.getItem('order_just_submitted')) {
@@ -65,13 +70,16 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
                 }
             }
             if (this.serviceType !== 'mesa') { this.selectedTables = []; }
-            // Limpiar del draft productos que ya no existen o no tienen stock
-            Object.keys(this.selectedMap || {}).forEach(id => {
-                const item    = this.selectedMap[id];
-                const product = this.products.find(p => p.id == id);
+            // Limpiar del draft y refrescar precios desde datos en vivo del servidor
+            Object.keys(this.selectedMap || {}).forEach(key => {
+                const item    = this.selectedMap[key];
+                const product = this.products.find(p => this._key(p) === key);
                 if (!product || product.sold_out ||
                     (!product.allow_negative && typeof product.stock === 'number' && item.quantity > product.stock)) {
-                    delete this.selectedMap[id];
+                    delete this.selectedMap[key];
+                } else {
+                    // Refresh price/category_id from server to fix any stale draft data
+                    this.selectedMap[key] = { ...item, price: product.price, category_id: product.category_id };
                 }
             });
             this.saveDraft();
@@ -117,16 +125,23 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
                 : this.tableSelectUrl;
         },
 
+        addProductByKey(key) {
+            const product = this.products.find(p => this._key(p) === key);
+            if (product) this.addProduct(product);
+        },
+
         addProduct(product) {
             if (product.sold_out) return;
-            const existing  = this.selectedMap[product.id] ?? { ...product, quantity: 0 };
+            const key = this._key(product);
+            // Always use live price from products array to guard against stale Alpine scope
+            const liveProduct = this.products.find(p => p.id === product.id && String(p.category_id) === String(product.category_id)) || product;
+            const existing  = this.selectedMap[key] ?? { ...liveProduct, quantity: 0, _key: key };
             const newQty    = existing.quantity + 1;
-            if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
-                window.showToast && showToast('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
+            if (!liveProduct.allow_negative && typeof liveProduct.stock === 'number' && newQty > liveProduct.stock) {
+                window.showToast && showToast('Stock insuficiente para ' + liveProduct.name + '. Disponible: ' + liveProduct.stock);
                 return;
             }
-            existing.quantity = newQty;
-            this.selectedMap[product.id] = existing;
+            this.selectedMap[key] = { ...existing, _key: key, price: liveProduct.price, category_id: liveProduct.category_id, quantity: newQty };
             this.saveDraft();
         },
 
@@ -143,8 +158,8 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
         },
         saveItemComment() {
             if (this.currentCommentItem) {
-                const id = this.currentCommentItem.id;
-                this.selectedMap[id] = { ...this.selectedMap[id], comment: this.currentCommentText };
+                const key = this.currentCommentItem._key;
+                this.selectedMap[key] = { ...this.selectedMap[key], comment: this.currentCommentText };
                 this.saveDraft();
             }
             this.closeCommentModal();
@@ -155,22 +170,28 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
         get previewTotal() { return this.selectedList.reduce((s, i) => s + this.itemSubtotal(i), 0); },
         get itemCount()    { return this.selectedList.reduce((s, i) => s + (Number(i.quantity) || 0), 0); },
 
-        increment(productId) {
-            if (!this.selectedMap[productId]) return;
-            const item    = this.selectedMap[productId];
-            const product = this.products.find(p => p.id == productId) || item;
+        increment(key) {
+            if (!this.selectedMap[key]) return;
+            const item    = this.selectedMap[key];
+            const product = this.products.find(p => this._key(p) === key) || item;
             const newQty  = item.quantity + 1;
             if (!product.allow_negative && typeof product.stock === 'number' && newQty > product.stock) {
                 window.showToast && showToast('Stock insuficiente para ' + product.name + '. Disponible: ' + product.stock);
                 return;
             }
-            this.selectedMap[productId].quantity = newQty;
+            this.selectedMap[key] = { ...item, quantity: newQty };
             this.saveDraft();
         },
-        decrement(productId) {
-            if (!this.selectedMap[productId]) return;
-            this.selectedMap[productId].quantity -= 1;
-            if (this.selectedMap[productId].quantity <= 0) { delete this.selectedMap[productId]; }
+        decrement(key) {
+            if (!this.selectedMap[key]) return;
+            const newQty = this.selectedMap[key].quantity - 1;
+            if (newQty <= 0) {
+                const m = { ...this.selectedMap };
+                delete m[key];
+                this.selectedMap = m;
+            } else {
+                this.selectedMap[key] = { ...this.selectedMap[key], quantity: newQty };
+            }
             this.saveDraft();
         },
 
