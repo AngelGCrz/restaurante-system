@@ -12,6 +12,9 @@
 <link rel="preconnect" href="https://fonts.bunny.net">
 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
+{{-- Non-module script: defines Alpine component factories before Livewire/Alpine start --}}
+<script src="{{ asset('js/alpine-components.js') }}"></script>
+
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 @fluxAppearance
 
