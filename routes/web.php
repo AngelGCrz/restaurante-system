@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\TagController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\TableSettingsController;
@@ -33,6 +34,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('tables/release', [\App\Http\Controllers\Admin\ReleaseTableController::class, 'index'])->name('tables.release');
         Route::post('tables/release', [\App\Http\Controllers\Admin\ReleaseTableController::class, 'release'])->name('tables.release.confirm');
         Route::resource('categories', CategoryController::class)->except(['show']);
+        Route::resource('tags', TagController::class)->except(['show']);
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
             Route::get('ventas', [ReportController::class, 'sales'])->name('sales');

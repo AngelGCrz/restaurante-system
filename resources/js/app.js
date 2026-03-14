@@ -166,6 +166,16 @@ window.orderFormComponent = function ({ totalTables = 0, presetTables = [], pres
             this.currentCommentItem = null;
             this.currentCommentText = '';
         },
+        toggleTag(tag) {
+            const parts = this.currentCommentText ? this.currentCommentText.split(',').map(s => s.trim()).filter(Boolean) : [];
+            const idx = parts.findIndex(p => p.toLowerCase() === tag.toLowerCase());
+            if (idx >= 0) {
+                parts.splice(idx, 1);
+            } else {
+                parts.push(tag);
+            }
+            this.currentCommentText = parts.join(', ');
+        },
         saveItemComment() {
             if (this.currentCommentItem) {
                 const key = this.currentCommentItem._key;

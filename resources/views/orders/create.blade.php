@@ -218,9 +218,21 @@
                         <h3 class="text-lg font-semibold mb-2">
                             Comentario para: <span class="font-bold" x-text="currentCommentItem?.name"></span>
                         </h3>
-                        <textarea rows="4"
+                        @if($tags->count())
+                        <div class="flex flex-wrap gap-1.5 mb-3">
+                            @foreach($tags as $tag)
+                            <button type="button"
+                                class="rounded-full border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-xs font-medium hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-700 dark:hover:bg-indigo-950 dark:hover:text-indigo-300 transition"
+                                @click="toggleTag('{{ $tag->name }}')">
+                                {{ $tag->name }}
+                            </button>
+                            @endforeach
+                        </div>
+                        @endif
+                        <textarea rows="3"
                                 class="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-                                x-model="currentCommentText">
+                                x-model="currentCommentText"
+                                placeholder="Escribe o selecciona tags arriba...">
                         </textarea>
                         <div class="mt-4 flex justify-end gap-2">
                             <button type="button" class="px-4 py-2 rounded-lg border" @click="closeCommentModal">Cancelar</button>

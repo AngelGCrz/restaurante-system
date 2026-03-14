@@ -237,11 +237,22 @@
                 <h3 class="mb-3 text-lg font-semibold">
                     Nota para: <span x-text="currentCommentItem?.name" class="text-indigo-600"></span>
                 </h3>
+                @if($tags->count())
+                <div class="flex flex-wrap gap-1.5 mb-3">
+                    @foreach($tags as $tag)
+                    <button type="button"
+                        class="rounded-full border border-zinc-300 dark:border-zinc-600 px-3 py-1 text-xs font-medium hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-700 dark:hover:bg-indigo-950 dark:hover:text-indigo-300 transition"
+                        @click="toggleTag('{{ $tag->name }}')">
+                        {{ $tag->name }}
+                    </button>
+                    @endforeach
+                </div>
+                @endif
                 <textarea
                     x-model="currentCommentText"
                     class="w-full rounded-lg border border-zinc-300 p-3 text-sm dark:border-zinc-600 dark:bg-zinc-900"
                     rows="3"
-                    placeholder="Ej: sin cebolla, término 3/4..."></textarea>
+                    placeholder="Escribe o selecciona tags arriba..."></textarea>
                 <div class="mt-4 flex gap-3">
                     <button type="button"
                             class="flex-1 rounded-lg bg-indigo-600 py-2 font-semibold text-white hover:bg-indigo-700"
@@ -317,6 +328,12 @@
                 this.showCommentModal = true;
             },
             closeCommentModal() { this.showCommentModal = false; this.currentCommentItem = null; this.currentCommentText = ''; },
+            toggleTag(tag) {
+                const parts = this.currentCommentText ? this.currentCommentText.split(',').map(s => s.trim()).filter(Boolean) : [];
+                const idx = parts.findIndex(p => p.toLowerCase() === tag.toLowerCase());
+                if (idx >= 0) { parts.splice(idx, 1); } else { parts.push(tag); }
+                this.currentCommentText = parts.join(', ');
+            },
             saveItemComment() {
                 if (this.currentCommentItem) {
                     const key = this.currentCommentItem._key;

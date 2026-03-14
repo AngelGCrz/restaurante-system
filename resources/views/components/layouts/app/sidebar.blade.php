@@ -25,6 +25,7 @@
                         @if (Route::has('admin.categories.index'))
                             <flux:navlist.item icon="swatch" :href="route('admin.categories.index')" :current="request()->routeIs('admin.categories.*')" wire:navigate>Categorías</flux:navlist.item>
                         @endif
+                        <flux:navlist.item icon="tag" :href="route('admin.tags.index')" :current="request()->routeIs('admin.tags.*')" wire:navigate>Tags</flux:navlist.item>
                         <flux:navlist.item icon="table-cells" :href="route('admin.tables.edit')" :current="request()->routeIs('admin.tables.*')" wire:navigate>Mesas</flux:navlist.item>
                         <flux:navlist.item icon="cube" :href="route('admin.settings.stock.edit')" :current="request()->routeIs('admin.settings.stock.*')" wire:navigate>Ajustes de Stock</flux:navlist.item>
                         <flux:navlist.item icon="chart-bar" :href="route('admin.reports.index')" :current="request()->routeIs('admin.reports.*')" wire:navigate>Reportes</flux:navlist.item>

@@ -241,7 +241,9 @@ class OrderController extends Controller
             })
             ->values();
 
-        return view('orders.add-items', compact('order', 'rootOrder', 'categories', 'products'));
+        $tags = \App\Models\Tag::active()->orderBy('sort_order')->get(['id', 'name']);
+
+        return view('orders.add-items', compact('order', 'rootOrder', 'categories', 'products', 'tags'));
     }
 
     /**
@@ -488,8 +490,9 @@ class OrderController extends Controller
             ->all();
 
         $staffUsers = \App\Models\User::select('id', 'name')->orderBy('name')->get();
+        $tags = \App\Models\Tag::active()->orderBy('sort_order')->get(['id', 'name']);
 
-        return view('orders.create', compact('products', 'categories', 'tableCount', 'tableNumbers', 'selectedTables', 'staffUsers'));
+        return view('orders.create', compact('products', 'categories', 'tableCount', 'tableNumbers', 'selectedTables', 'staffUsers', 'tags'));
     }
 
     public function selectTables()
