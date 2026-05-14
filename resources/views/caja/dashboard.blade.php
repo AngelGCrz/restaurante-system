@@ -588,6 +588,12 @@ function cajaDashboard() {
                 sessionStorage.removeItem('caja_tab_pendiente');
             }
             this.ocultarImpresasAlCargar();
+            // Auto-imprimir pedidos que ya están visibles al cargar la página
+            document.querySelectorAll('.order-card').forEach(card => {
+                if (card.style.display !== 'none') {
+                    scheduleAutoPrint(card.dataset.orderId);
+                }
+            });
             setInterval(() => this.pollCocina(), 5000);
         },
 
@@ -657,6 +663,7 @@ function cajaDashboard() {
                     const card = buildCard(order);
                     grid.prepend(card);
                     requestAnimationFrame(() => { card.style.opacity = '1'; card.style.transform = 'translateY(0)'; });
+                    scheduleAutoPrint(order.id);
                 }
             });
 
@@ -719,10 +726,42 @@ function esc(s) {
     return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '';
 }
 
+// ── Auto-imprimir con cuenta regresiva ──────────────────────────────────────
+function scheduleAutoPrint(orderId) {
+    let secsLeft = 3;
+
+    function getBtn() {
+        const card = document.querySelector(`.order-card[data-order-id="${orderId}"]`);
+        if (!card || card.style.display === 'none') return null;
+        return card.querySelector('.btn-imprimir');
+    }
+
+    function tick() {
+        const btn = getBtn();
+        if (!btn || btn.disabled) return; // ya imprimiendo o desaparecida
+        btn.innerHTML = ` Imprimiendo en ${secsLeft}s...`;
+    }
+
+    tick(); // mostrar inmediatamente
+
+    const iv = setInterval(() => {
+        secsLeft--;
+        if (secsLeft <= 0) {
+            clearInterval(iv);
+            const btn = getBtn();
+            if (btn && !btn.disabled) {
+                imprimirPedido(orderId, btn);
+            }
+        } else {
+            tick();
+        }
+    }, 1000);
+}
+
 // ── Imprimir ──────────────────────────────────────────────────────────────────
 async function imprimirPedido(orderId, btn) {
     btn.disabled = true;
-    btn.innerHTML = '⏳ Enviando...';
+    btn.innerHTML = ' Enviando...';
 
     try {
         // 1. Obtener datos del pedido
