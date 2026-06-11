@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\TableSettingsController;
 use App\Http\Controllers\CashController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KitchenController;
 use App\Http\Controllers\OrderController;
 use App\Livewire\Settings\Appearance;
@@ -18,8 +19,19 @@ use Laravel\Fortify\Features;
 
 
 Route::get('/', function () {
-    return view('welcome');
+    if (auth()->check()) {
+        $role = auth()->user()->role?->name;
+        if ($role === 'admin')  return redirect()->route('admin.products.index');
+        if ($role === 'cajero') return redirect()->route('caja.dashboard');
+        if ($role === 'cocina') return redirect()->route('kitchen.index');
+        if ($role === 'mozo')   return redirect()->route('mozo.orders.create');
+    }
+    return redirect()->route('login');
 })->name('home');
+
+// Health check / print interface endpoints (no auth required)
+Route::get('/ping', fn() => 'pong');
+Route::get('/test-print-api', fn() => response()->json(['ok' => true]));
 
 Route::middleware(['auth'])->group(function () {
 
@@ -38,7 +50,6 @@ Route::middleware(['auth'])->group(function () {
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('index');
             Route::get('ventas', [ReportController::class, 'sales'])->name('sales');
-            Route::get('ventas-detalladas', [ReportController::class, 'salesdetallada'])->name('salesdetallada');
             Route::get('caja', [ReportController::class, 'cash'])->name('cash');
             Route::get('inventario', [ReportController::class, 'inventory'])->name('inventory');
             Route::get('clientes', [ReportController::class, 'customers'])->name('customers');
@@ -46,14 +57,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('cocina', [ReportController::class, 'kitchen'])->name('kitchen');
             Route::get('ganancias', [ReportController::class, 'profit'])->name('profit');
         });
-    });
-    Route::get('/test-print-api', function () {
-    return response()->json(['ok' => true]);
-});
-Route::get('/ping', function () {
-    return 'pong';
-});
-
+    }); // end role:admin
 
 
     // Rutas para Cajero
@@ -113,7 +117,7 @@ Route::get('/ping', function () {
 
 });
 
-Route::view('dashboard', 'dashboard')
+Route::get('dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
