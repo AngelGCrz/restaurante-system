@@ -60,6 +60,57 @@
                 <div class="flex justify-between items-center px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
                     <div>
                         <span class="font-bold dark:text-white">Orden #{{ $order->id }}</span>
+
+                {{-- Últimos pedidos para reimpresión manual --}}
+                <div class="rounded-xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-zinc-800 overflow-hidden">
+                    <div class="px-4 py-3 bg-blue-50 dark:bg-blue-950/40 border-b border-blue-200 dark:border-blue-800">
+                        <h2 class="font-semibold text-blue-800 dark:text-blue-200">Últimos 10 pedidos</h2>
+                        <p class="text-xs text-blue-600 dark:text-blue-300 mt-0.5">Reimprime un pedido cuando sea necesario.</p>
+                    </div>
+                    @if($ultimosPedidos->isEmpty())
+                    <div class="p-6 text-center text-zinc-400 text-sm">No hay pedidos registrados.</div>
+                    @else
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-700 text-xs text-zinc-500 uppercase tracking-wide">
+                                <tr>
+                                    <th class="px-4 py-3 font-semibold">ID</th>
+                                    <th class="px-4 py-3 font-semibold">Hora</th>
+                                    <th class="px-4 py-3 font-semibold">Mesa</th>
+                                    <th class="px-4 py-3 font-semibold">Detalle</th>
+                                    <th class="px-4 py-3 font-semibold">Estado</th>
+                                    <th class="px-4 py-3 font-semibold text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-700">
+                                @foreach($ultimosPedidos as $order)
+                                <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition">
+                                    <td class="px-4 py-3 font-medium dark:text-white">#{{ $order->id }}</td>
+                                    <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">{{ $order->created_at->format('d/m H:i') }}</td>
+                                    <td class="px-4 py-3 dark:text-white">{{ $order->table_label }}</td>
+                                    <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">
+                                        {{ $order->items->map(fn($item) => $item->quantity . 'x ' . ($item->product->name ?? '?'))->implode(', ') }}
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="rounded-full px-2 py-0.5 text-xs font-semibold
+                                            {{ $order->status === 'pagado' ? 'bg-green-100 text-green-700' :
+                                               ($order->status === 'cancelado' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700') }}">
+                                            {{ ucfirst($order->status) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <button type="button" onclick="imprimirPedido({{ $order->id }}, this, true)"
+                                            class="btn-reimprimir inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+                                            🖨️ Imprimir
+                                        </button>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+                </div>
                         <span class="text-xs text-zinc-400 ml-2">{{ $order->created_at->format('H:i') }}</span>
                     </div>
                     <div class="flex items-center gap-2">
@@ -319,6 +370,8 @@
                             <td class="px-4 py-3">
                                 @if($order->status === 'pagado')
                                     <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-green-100 text-green-700 font-semibold">✅ Cobrado</span>
+                                @elseif($order->status === 'pendiente')
+                                    <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-red-100 text-red-700 font-semibold">⚠️ No cobrado</span>
                                 @else
                                     <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-red-100 text-red-700 font-semibold">🚫 Cancelado</span>
                                 @endif
@@ -332,10 +385,16 @@
                                 {{ $rt[$order->receipt_type] ?? '—' }}
                             </td>
                             <td class="px-4 py-3">
-                                <a href="{{ route('orders.show', $order) }}"
-                                    class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
-                                    Ver
-                                </a>
+                                <div class="flex items-center gap-2">
+                                    <a href="{{ route('orders.show', $order) }}"
+                                        class="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                                        Ver
+                                    </a>
+                                    <button type="button" onclick="imprimirPedido({{ $order->id }}, this, true)"
+                                        class="btn-reimprimir inline-flex items-center gap-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 text-xs font-semibold transition">
+                                        🖨️ Imprimir
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         @endforeach
@@ -759,7 +818,7 @@ function scheduleAutoPrint(orderId) {
 }
 
 // ── Imprimir ──────────────────────────────────────────────────────────────────
-async function imprimirPedido(orderId, btn) {
+async function imprimirPedido(orderId, btn, manual = false) {
     btn.disabled = true;
     btn.innerHTML = ' Enviando...';
 
@@ -775,16 +834,17 @@ async function imprimirPedido(orderId, btn) {
 
         const { order } = await res.json();
 
-        // 2. Marcar como impresa en el servidor SIEMPRE (independiente de la impresora)
-        try {
-            await fetch(`/kitchen/${orderId}/mark-printed`, {
-                method: 'POST', credentials: 'same-origin',
-                headers: { 'X-CSRF-TOKEN': csrf }
-            });
-        } catch(e) {}
+        // Una reimpresión no debe sacar el pedido de cocina ni alterar su estado.
+        if (!manual) {
+            try {
+                await fetch(`/kitchen/${orderId}/mark-printed`, {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: { 'X-CSRF-TOKEN': csrf }
+                });
+            } catch(e) {}
 
-        // 3. Guardar en localStorage (persiste en refresh)
-        marcarImpresaLocal(orderId);
+            marcarImpresaLocal(orderId);
+        }
 
         // 4. Intentar enviar a impresora física (no bloquea el flujo si falla)
         const pedidobody = {
@@ -808,6 +868,12 @@ async function imprimirPedido(orderId, btn) {
             socket.onmessage = e => console.log('Respuesta impresora:', JSON.parse(e.data));
         } catch(e) {
             console.warn('[Impresora]', e.message);
+        }
+
+        if (manual) {
+            btn.disabled = false;
+            btn.innerHTML = '🖨️ Imprimir';
+            return;
         }
 
         // 5. Ocultar tarjeta e ir a Cobros

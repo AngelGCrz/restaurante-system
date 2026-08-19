@@ -28,11 +28,20 @@ class CajaController extends Controller
 
         $ordersByTable = $this->agruparPorMesa($ordenesCobro);
 
-        // ── Tab Historial: pagos y cancelaciones ──────────────────────────────
-        $historial = Order::whereIn('status', ['pagado', 'cancelado'])
-            ->whereDate('updated_at', Carbon::today())
-            ->with('items')                          // ← cargar items
+        // ── Tab Historial: pedidos del día, cobrados, cancelados o pendientes ─
+        $historial = Order::whereIn('status', ['pendiente', 'pagado', 'cancelado'])
+            ->where(function ($query) {
+                $query->whereDate('created_at', Carbon::today())
+                    ->orWhereDate('updated_at', Carbon::today());
+            })
+            ->with('items')
             ->orderByDesc('updated_at')
+            ->get();
+
+        // ── Últimos pedidos: disponibles para reimpresión manual ────────────
+        $ultimosPedidos = Order::with('items.product')
+            ->orderByDesc('created_at')
+            ->limit(10)
             ->get();
 
         $countPagado    = $historial->where('status', 'pagado')->count();
@@ -58,6 +67,7 @@ class CajaController extends Controller
             'pedidosCocina',
             'ordersByTable',
             'historial',
+            'ultimosPedidos',
             'countPagado',
             'totalPagado',
             'countCancelado',
